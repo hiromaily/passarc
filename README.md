@@ -12,7 +12,7 @@ password, and PassArc creates the archive next to the original.
 
 1. Right-click a folder in Finder and choose **Archive with Password**.
 
-   <img src="docs/images/finder-context-menu.png" alt="Finder context menu with Archive with Password highlighted" width="228">
+   <img src="docs/images/finder-context-menu.png" alt="Finder context menu with Archive with Password highlighted" width="227">
 
 2. In the **Archive** dialog, choose a format and compression level. Leave **Protect with a password** checked and enter the password in both fields, or clear it to create an unprotected archive. Click **Compress** to save the archive next to the folder.
 
@@ -44,6 +44,9 @@ The speed and size comparisons are estimates. In Zstandard’s Linux benchmark, 
 ## Extract an archive from Finder
 
 1. Right-click a single `7z`, `zip`, or `tar.zst` archive and choose **Extract with PassArc**.
+
+   <img src="docs/images/finder-extract-context-menu.png" alt="Finder context menu with Extract with PassArc highlighted" width="239">
+
 2. If prompted, enter the archive password and click **Extract**. PassArc supports the AES-256 archives it creates.
 3. PassArc reveals the extracted folder in Finder. The folder is created next to the archive, with a number appended if the name is already in use.
 

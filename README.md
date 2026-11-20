@@ -9,6 +9,16 @@ password, and PassArc creates the archive next to the original.
 - Development notes (pitfalls and how the code handles them): [docs/development-notes.md](docs/development-notes.md)
 - PassArc only creates archives. It does not extract them.
 
+## Archive a folder from Finder
+
+1. Right-click a folder in Finder and choose **Archive with Password**.
+
+   <img src="docs/images/finder-context-menu.png" alt="Finder context menu with Archive with Password highlighted" width="228">
+
+2. In the **Archive** dialog, choose a format and compression level. Leave **Protect with a password** checked and enter the password in both fields, or clear it to create an unprotected archive. Click **Compress** to save the archive next to the folder.
+
+   <img src="docs/images/archive-dialog.png" alt="PassArc Archive dialog with 7z, Normal compression, and password protection selected" width="378">
+
 ## Formats
 
 | Format | Password | Notes |

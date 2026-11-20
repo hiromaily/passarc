@@ -28,6 +28,19 @@ password, and PassArc creates the archive next to the original.
 
 Compression levels: Fast / Normal / Maximum (`-mx=1/5/9` for 7z and ZIP, `-1/-3/-19` for zstd).
 
+### Comparison with macOS Finder compression
+
+Finder’s built-in **Compress** command creates an unencrypted ZIP archive. [Apple’s Finder guide](https://support.apple.com/guide/mac-help/zip-and-unzip-files-and-folders-on-mac-mchlp2528/mac)
+
+| Format | Performance | Security | Archive size |
+| --- | --- | --- | --- |
+| macOS Finder ZIP | Baseline | No encryption | Baseline |
+| PassArc 7z | Higher compression settings can take longer than Finder ZIP | Optional AES-256 encryption for both file contents and names | Often smaller than Finder ZIP for text or folders with many similar files |
+| PassArc ZIP | Adjustable compression level. Speed relative to Finder ZIP depends on the setting and input | Optional AES-256 encryption for file contents. File names remain visible | Typically similar to Finder ZIP, depending on the setting and input |
+| PassArc tar.zst | Fast and Normal favor compression and extraction speed | No encryption | Can be smaller than Finder ZIP for text and logs. Already compressed files such as JPEGs and MP4s usually see little benefit |
+
+The speed and size comparisons are estimates. In Zstandard’s Linux benchmark, `zstd -1` compressed about 4.9× as fast as `zlib -1`, decompressed about 4.0× as fast, and produced about 5% less compressed data. For an end-to-end comparison on macOS, include the time PassArc spends verifying the archive after creation. [Zstandard benchmark](https://github.com/meta/zstd#benchmarks) · [7z format documentation](https://www.7-zip.org/7z.html)
+
 ## Extract an archive from Finder
 
 1. Right-click a single `7z`, `zip`, or `tar.zst` archive and choose **Extract with PassArc**.

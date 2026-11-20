@@ -28,7 +28,36 @@ under "Open with", and click "Change All…".
 
 The dialog explains this too: click the **?** button in its lower-left corner.
 
-## Requirements
+## Install with Homebrew
+
+On macOS 15 or later with Apple Silicon, use the following command once the first release
+has been published to the tap.
+
+```sh
+brew install --cask hiromaily/tap/passarc
+```
+
+Homebrew installs `PassArc.app` in `/Applications` by default, registers its Finder Sync
+extension, and installs `sevenzip` and `zstd`.
+
+The release is ad hoc signed. If macOS blocks first launch and you trust the release,
+open PassArc once and follow [Apple's Open Anyway instructions](https://support.apple.com/en-us/102445).
+
+Enable **PassArcFinder** under **System Settings > General > Login Items & Extensions >
+Finder**. Then right-click a test file in Finder and choose **Archive with Password**.
+The archive should appear next to the original file.
+
+If you previously installed from source, remove the old copy in `~/Applications`
+to avoid having two copies registered for the Finder extension and the `passarc://` URL.
+
+```sh
+brew upgrade --cask hiromaily/tap/passarc
+brew uninstall --cask hiromaily/tap/passarc
+```
+
+For release packaging and tap updates, see the [Homebrew release guide](homebrew/README.md).
+
+## Build and install from source
 
 - macOS 15 or later (Apple Silicon)
 - Xcode Command Line Tools (`xcode-select --install`). **Xcode itself is not needed.** It could not be installed
@@ -37,8 +66,6 @@ The dialog explains this too: click the **?** button in its lower-left corner.
 
 7-Zip (`7zz`) is not bundled. PassArc looks for it in `/opt/homebrew/bin`, then `/usr/local/bin`. 7-Zip is licensed
 under the GNU LGPL and other licenses; because it is not bundled, this repository does not redistribute it.
-
-## Build and install
 
 ```sh
 <this directory>/scripts/build.sh --install

@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Package app and render cask
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=0.0.0
+          if [[ "$REF_TYPE" == tag ]]; then
+            version="${REF_NAME#v}"
+          fi
+          scripts/package-release.sh "$version"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: passarc-release
+          path: |
+            build/release/PassArc-arm64.zip
+            build/release/passarc.rb
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: passarc-release
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --generate-notes PassArc-arm64.zip passarc.rb
+
+  update-homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: passarc-homebrew-tap
+      cancel-in-progress: false
+    steps:
+      - name: Check tap credentials
+        id: tap
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [[ -n "$TAP_TOKEN" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::HOMEBREW_TAP_TOKEN is unset. Copy the release's passarc.rb to Casks/passarc.rb in hiromaily/homebrew-tap."
+          fi
+      - uses: actions/download-artifact@v6
+        if: steps.tap.outputs.enabled == 'true'
+        with:
+          name: passarc-release
+          path: release-assets
+      - uses: actions/checkout@v6
+        if: steps.tap.outputs.enabled == 'true'
+        with:
+          repository: hiromaily/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+      - name: Publish cask to tap
+        if: steps.tap.outputs.enabled == 'true'
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          if [[ "$TAG" != "$latest" ]]; then
+            echo "Skipping $TAG because $latest is the current release."
+            exit 0
+          fi
+          mkdir -p homebrew-tap/Casks
+          cp release-assets/passarc.rb homebrew-tap/Casks/passarc.rb
+          cd homebrew-tap
+          git add -- Casks/passarc.rb
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "Update PassArc to $TAG"
+          git push

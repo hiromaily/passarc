@@ -12,9 +12,13 @@ It builds the app and extension, verifies the signature after extracting the ZIP
 ZIP's SHA-256 and points to the GitHub release for that version. The Release workflow can also
 be run manually from Actions to check packaging without publishing.
 
-Local builds and workflow runs on branches use ad hoc signatures by default. The workflow
-requires Developer ID signing and Apple notarization for tag builds. Configure these
-repository Actions secrets before pushing a release tag.
+Tag builds use ad hoc signatures when the repository Actions variable
+`PASSARC_NOTARIZE` is unset or `false`. This mode requires no Apple credentials.
+macOS may show a Gatekeeper warning on first launch. See the [troubleshooting guide](../README.md#macos-says-passarc-was-not-opened).
+
+To enable notarization for tag builds, go to **Settings → Secrets and variables → Actions → Variables**
+and set the repository variable `PASSARC_NOTARIZE` to `true`. Configure these repository
+Actions secrets before pushing the release tag. The release fails if signing or notarization fails.
 
 | Secret | Value |
 | --- | --- |

@@ -30,6 +30,10 @@ The dialog explains this too: click the **?** button in its lower-left corner.
 
 ## Install with Homebrew
 
+> [!WARNING]
+> ⚠️ **The current Homebrew release is ad hoc-signed.** macOS may block PassArc the
+> first time you open it. See [what to do if macOS blocks PassArc](#macos-says-passarc-was-not-opened).
+
 On macOS 15 or later with Apple Silicon, install PassArc with Homebrew.
 
 ```sh
@@ -83,7 +87,7 @@ Without `--install`, it only builds into `build/scripts/`.
 
 ### macOS says “PassArc” was not opened
 
-Releases through v0.1.1 use ad hoc signatures and can trigger this Gatekeeper warning. If you installed
+Ad hoc-signed releases can trigger this Gatekeeper warning. If you installed
 through Homebrew, [check for an update](#update-passarc) first.
 
 If you trust the copy you installed and want to open it, click **Done** in the warning. Open

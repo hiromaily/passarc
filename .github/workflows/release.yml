@@ -14,8 +14,25 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
+      - name: Select release signing mode
+        id: signing
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          NOTARIZE: ${{ vars.PASSARC_NOTARIZE }}
+        run: |
+          case "$NOTARIZE" in
+            ""|false|true) ;;
+            *) echo "::error::PASSARC_NOTARIZE must be true, false, or unset."; exit 1 ;;
+          esac
+          if [[ "$REF_TYPE" == tag && "$NOTARIZE" == true ]]; then
+            echo "notarize=true" >> "$GITHUB_OUTPUT"
+            echo "Signing with Developer ID and notarizing"
+          else
+            echo "notarize=false" >> "$GITHUB_OUTPUT"
+            echo "Signing ad hoc"
+          fi
       - name: Import Developer ID and prepare notarization
-        if: github.ref_type == 'tag'
+        if: steps.signing.outputs.notarize == 'true'
         env:
           CERTIFICATE: ${{ secrets.PASSARC_DEVELOPER_ID_P12 }}
           CERTIFICATE_PASSWORD: ${{ secrets.PASSARC_DEVELOPER_ID_PASSWORD }}
@@ -48,13 +65,16 @@ jobs:
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          NOTARIZE: ${{ steps.signing.outputs.notarize }}
           PASSARC_NOTARY_KEY_ID: ${{ secrets.PASSARC_NOTARY_KEY_ID }}
           PASSARC_NOTARY_ISSUER: ${{ secrets.PASSARC_NOTARY_ISSUER }}
         run: |
           version=0.0.0
           if [[ "$REF_TYPE" == tag ]]; then
-            : "${PASSARC_SIGNING_IDENTITY:?}" "${PASSARC_NOTARY_KEY:?}"
             version="${REF_NAME#v}"
+          fi
+          if [[ "$NOTARIZE" == true ]]; then
+            : "${PASSARC_SIGNING_IDENTITY:?}" "${PASSARC_NOTARY_KEY:?}"
           fi
           scripts/package-release.sh "$version"
       - uses: actions/upload-artifact@v6

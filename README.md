@@ -30,18 +30,17 @@ The dialog explains this too: click the **?** button in its lower-left corner.
 
 ## Install with Homebrew
 
-On macOS 15 or later with Apple Silicon, use the following command once the first release
-has been published to the tap.
+On macOS 15 or later with Apple Silicon, install PassArc with Homebrew.
 
 ```sh
 brew install --cask hiromaily/tap/passarc
 ```
 
-Homebrew installs `PassArc.app` in `/Applications` by default, registers its Finder Sync
-extension, and installs `sevenzip` and `zstd`.
+Homebrew installs `PassArc.app` in `/Applications` by default and installs `sevenzip`
+and `zstd`. Open PassArc once so macOS can discover its Finder Sync extension.
 
 The release is ad hoc signed. If macOS blocks first launch and you trust the release,
-open PassArc once and follow [Apple's Open Anyway instructions](https://support.apple.com/en-us/102445).
+follow [Apple's Open Anyway instructions](https://support.apple.com/en-us/102445).
 
 Enable **PassArcFinder** under **System Settings > General > Login Items & Extensions >
 Finder**. Then right-click a test file in Finder and choose **Archive with Password**.

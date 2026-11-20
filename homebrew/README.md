@@ -31,7 +31,7 @@ For a manual tap update, download `passarc.rb` from the release, commit it to
 ## Verify an installed release
 
 On an Apple Silicon Mac, install with `brew install --cask hiromaily/tap/passarc`.
-Enable PassArcFinder in System Settings, then use **Archive with Password** in Finder
+Open PassArc once, enable PassArcFinder in System Settings, then use **Archive with Password** in Finder
 to archive a test file. Check that the archive opens with the password. Uninstall with
 `brew uninstall --cask hiromaily/tap/passarc` and confirm the app and its Finder menu
 are removed.

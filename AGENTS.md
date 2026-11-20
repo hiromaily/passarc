@@ -1,0 +1,40 @@
+# PassArc development guide
+
+PassArc is a macOS app that creates archives next to the files or folders selected in Finder. It targets macOS 15 or later on Apple Silicon. Use Swift 6 and the Xcode Command Line Tools. The app and extension are built with `swiftc`.
+
+## Project layout
+
+- `App/` owns the AppKit and SwiftUI dialog, URL handling, job launch, and notifications. Keep user-facing text in English.
+- `Extension/` contains the sandboxed Finder Sync extension. It adds the context-menu item and forwards selected paths to the app via `passarc://archive`. Check both the sender and receiver when changing the URL contract.
+- `Core/Sources/PassArcCore/` contains URL encoding and decoding, settings, command construction, archive creation, and verification. The Finder extension also links this library, so use APIs available to app extensions. Tests live in `Core/Tests/PassArcCoreTests/`.
+
+## Archive behavior
+
+- Pass passwords to the 7-Zip prompt through `PTYRunner`. Keep passwords out of command-line arguments and logs during both creation and verification.
+- Preserve AES-256 for password-protected 7z and ZIP archives and encrypt file names in protected 7z archives. Disable tar.zst while password protection is enabled.
+- Write to a temporary `.partial` file and move it to its final name after verification succeeds. Remove partial files on failure or cancellation and avoid overwriting existing archives, including when jobs run concurrently.
+- Preserve the exclusion of `.DS_Store` and `._*` files and store symbolic links as links.
+
+## Build and verification
+
+Run these commands from the repository root.
+
+Start with the files and focused tests for the behavior you're changing.
+
+| Change | Start with | Focused test |
+| --- | --- | --- |
+| Password validation or available archive formats | `PasswordRules.swift`, `DialogState.swift` | `swift test --package-path Core --filter DialogStateTests` |
+| Compression options or command-line arguments | `ArchiveOptions.swift`, `CommandBuilder.swift` | `swift test --package-path Core --filter CommandBuilderTests` |
+| Output names and collision handling | `OutputNaming.swift`, `ArchiveJob.swift` | `swift test --package-path Core --filter OutputNamingTests` |
+| Archive verification, cancellation, or partial-file cleanup | `ArchiveJob.swift` | `swift test --package-path Core --filter ArchiveJobTests` |
+| Password prompts or pseudo-terminal behavior | `PTYRunner.swift` | `swift test --package-path Core --filter PTYRunnerTests` |
+| Selected paths passed from Finder to the app | `Extension/FinderSync.swift`, `ArchiveURL.swift`, `App/AppDelegate.swift` | `swift test --package-path Core --filter ArchiveURLTests` |
+
+Bare Swift filenames in the table are in `Core/Sources/PassArcCore/`. Run the full core suite when a change affects shared behavior, and build the app and extension when a change affects either target.
+
+- `swift test --package-path Core` runs the core tests. Integration tests use real `7zz` and `zstd` binaries, available through `brew install sevenzip zstd`.
+- `scripts/build.sh` builds the app and Finder Sync extension and verifies their signatures. The app bundle is generated at `build/scripts/PassArc.app`.
+- `scripts/snapshot.sh <output-directory>` renders the dialog to PNG files. For changes to Finder integration, dialog launch, or notifications, check the affected workflow on macOS.
+- `scripts/build.sh --install` replaces `~/Applications/PassArc.app` and registers the Finder Sync extension. Use it when an installed build is needed.
+
+See [README.md](README.md) for setup and verification steps and [development notes](docs/development-notes.md) for macOS and 7-Zip implementation details.

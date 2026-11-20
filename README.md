@@ -83,7 +83,7 @@ Without `--install`, it only builds into `build/scripts/`.
 
 ### macOS says “PassArc” was not opened
 
-Releases through v0.1.1 use ad hoc signatures and can trigger this Gatekeeper warning. If you installed
+Ad hoc-signed releases can trigger this Gatekeeper warning. If you installed
 through Homebrew, [check for an update](#update-passarc) first.
 
 If you trust the copy you installed and want to open it, click **Done** in the warning. Open

@@ -14,13 +14,46 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
+      - name: Import Developer ID and prepare notarization
+        if: github.ref_type == 'tag'
+        env:
+          CERTIFICATE: ${{ secrets.PASSARC_DEVELOPER_ID_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.PASSARC_DEVELOPER_ID_PASSWORD }}
+          NOTARY_KEY: ${{ secrets.PASSARC_NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.PASSARC_NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.PASSARC_NOTARY_ISSUER }}
+        run: |
+          set -euo pipefail
+          : "${CERTIFICATE:?}" "${CERTIFICATE_PASSWORD:?}" "${NOTARY_KEY:?}" "${NOTARY_KEY_ID:?}" "${NOTARY_ISSUER:?}"
+          umask 077
+          keychain="$RUNNER_TEMP/passarc-signing.keychain-db"
+          password="$(openssl rand -hex 32)"
+          certificate="$RUNNER_TEMP/passarc-signing.p12"
+          trap 'rm -f "$certificate"' EXIT
+          printf '%s' "$CERTIFICATE" | base64 -D > "$certificate"
+          printf '%s\n' "$NOTARY_KEY" > "$RUNNER_TEMP/passarc-notary.p8"
+          security create-keychain -p "$password" "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          identity="$(security find-identity -v -p codesigning "$keychain" |
+            awk '/"Developer ID Application:/ { print $2; exit }')"
+          : "${identity:?No valid Developer ID Application identity found}"
+          {
+            echo "PASSARC_SIGNING_IDENTITY=$identity"
+            echo "PASSARC_NOTARY_KEY=$RUNNER_TEMP/passarc-notary.p8"
+          } >> "$GITHUB_ENV"
       - name: Package app and render cask
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          PASSARC_NOTARY_KEY_ID: ${{ secrets.PASSARC_NOTARY_KEY_ID }}
+          PASSARC_NOTARY_ISSUER: ${{ secrets.PASSARC_NOTARY_ISSUER }}
         run: |
           version=0.0.0
           if [[ "$REF_TYPE" == tag ]]; then
+            : "${PASSARC_SIGNING_IDENTITY:?}" "${PASSARC_NOTARY_KEY:?}"
             version="${REF_NAME#v}"
           fi
           scripts/package-release.sh "$version"

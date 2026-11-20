@@ -41,9 +41,16 @@ if [[ -n "${PASSARC_BUILD_VERSION:-}" ]]; then
   done
 fi
 
-echo "==> Signing (ad hoc, inside first)"
-codesign --force --sign - --entitlements "$ROOT/Extension/Extension.entitlements" --timestamp=none "$APPEX"
-codesign --force --sign - --timestamp=none "$APP"
+IDENTITY="${PASSARC_SIGNING_IDENTITY:--}"
+SIGN_ARGS=(--force --sign "$IDENTITY")
+if [[ "$IDENTITY" == "-" ]]; then
+  SIGN_ARGS+=(--timestamp=none)
+else
+  SIGN_ARGS+=(--options runtime --timestamp)
+fi
+echo "==> Signing (inside first)"
+codesign "${SIGN_ARGS[@]}" --entitlements "$ROOT/Extension/Extension.entitlements" "$APPEX"
+codesign "${SIGN_ARGS[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
 
 if [[ "${1:-}" == "--install" ]]; then

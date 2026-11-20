@@ -1,4 +1,5 @@
 import AppKit
+import FinderSync
 import PassArcCore
 
 @main
@@ -18,6 +19,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     notifier.start()
+  }
+
+  func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+    showFinderSetupIfNeeded()
+  }
+
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+    if !hasVisibleWindows { _ = showFinderSetupIfNeeded() }
+    return false
+  }
+
+  private func showFinderSetupIfNeeded() -> Bool {
+    guard !FIFinderSyncController.isExtensionEnabled else { return false }
+    let alert = NSAlert()
+    alert.messageText = "Enable PassArc in Finder"
+    alert.informativeText = "Open System Settings and turn on PassArcFinder. Then right-click a file or folder and choose Archive with Password."
+    alert.addButton(withTitle: "Open System Settings")
+    alert.addButton(withTitle: "Later")
+    NSApp.activate()
+    if alert.runModal() == .alertFirstButtonReturn {
+      FIFinderSyncController.showExtensionManagementInterface()
+    }
+    return true
   }
 
   /// Called for passarc://archive?path=...; one window per URL

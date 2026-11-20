@@ -49,8 +49,18 @@ The archive should appear next to the original file.
 If you previously installed from source, remove the old copy in `~/Applications`
 to avoid having two copies registered for the Finder extension and the `passarc://` URL.
 
+### Update PassArc
+
+If PassArc is already installed through Homebrew, run the following commands to install the latest release.
+
 ```sh
+brew update
 brew upgrade --cask hiromaily/tap/passarc
+```
+
+### Uninstall PassArc
+
+```sh
 brew uninstall --cask hiromaily/tap/passarc
 ```
 

@@ -1,0 +1,14 @@
+---
+name: passarc-release
+description: Publish or finish a PassArc version release for hiromaily/passarc and update its Homebrew cask in hiromaily/homebrew-tap. Use when asked to bump or release PassArc or to repair publication of an existing PassArc release. Skip for consumer-only Homebrew upgrades and ordinary PRs.
+---
+
+# Release PassArc
+
+Work from the PassArc repository. Read `homebrew/README.md` and `.github/workflows/release.yml` for the current packaging and tap publication flow. The Git tag sets the release version. The workflow generates the ZIP and renders the cask with its SHA-256.
+
+1. Check GitHub's current `main` SHA, tags, releases, and tap cask. Confirm that any PR the user wants included has merged and is in the release commit. Use the requested version or the next patch for a routine fix. Avoid releasing uncommitted workspace changes.
+2. Create and push the `vMAJOR.MINOR.PATCH` tag at the intended commit. Use `git push origin refs/tags/vX.Y.Z` or create the ref through the authenticated GitHub API. Reuse an existing tag if it points to the intended commit and resume from the published state. If it points elsewhere, stop and report the conflict without replacing the tag.
+3. Check the tag-triggered workflow with `gh run list -R hiromaily/passarc --workflow release.yml --branch vX.Y.Z` and monitor it through completion. Verify the GitHub release has `PassArc-arm64.zip` and `passarc.rb`. Inspect the generated cask's version and download URL and compare its SHA-256 to the ZIP's GitHub asset digest. Diagnose workflow failures before retrying.
+4. Verify `hiromaily/homebrew-tap` has the generated cask at `Casks/passarc.rb`. A green workflow can still skip publication when `HOMEBREW_TAP_TOKEN` is unset. If the intended release is still current and the tap is behind, download the release's `passarc.rb` and publish it to the tap's default branch. When using the GitHub Contents API, use the previously read file blob SHA to avoid overwriting a concurrent update. After a conflict, reread both repositories before deciding whether to retry. Verify the tap serves the same cask as the release.
+5. On an available Apple Silicon Mac, run `brew update` and verify Homebrew resolves `hiromaily/tap/passarc` at the target version. If local upgrade verification is in scope, run `brew upgrade --cask hiromaily/tap/passarc`, check `brew list --cask --versions passarc` and verify the installed app with `codesign --verify --deep --strict /Applications/PassArc.app` for the default app directory. Report the release and tap links, the checks actually completed, and any remaining blocker.

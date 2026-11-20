@@ -26,9 +26,14 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
   }
 
-  func postCompleted(_ file: URL) {
+  enum Action: String {
+    case created = "Created"
+    case extracted = "Extracted"
+  }
+
+  func postCompleted(_ file: URL, action: Action = .created) {
     let content = UNMutableNotificationContent()
-    content.title = "Created \(file.lastPathComponent)"
+    content.title = "\(action.rawValue) \(file.lastPathComponent)"
     content.body = file.deletingLastPathComponent().path
     content.userInfo = ["path": file.path]
     center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))

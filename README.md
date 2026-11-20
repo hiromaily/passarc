@@ -7,7 +7,6 @@ password, and PassArc creates the archive next to the original.
 - Design: [docs/superpowers/specs/2026-11-08-passarc-design.md](docs/superpowers/specs/2026-11-08-passarc-design.md)
 - Implementation plan (as written before implementation): [docs/superpowers/plans/2026-11-08-passarc.md](docs/superpowers/plans/2026-11-08-passarc.md)
 - Development notes (pitfalls and how the code handles them): [docs/development-notes.md](docs/development-notes.md)
-- PassArc only creates archives. It does not extract them.
 
 ## Archive a folder from Finder
 
@@ -29,14 +28,11 @@ password, and PassArc creates the archive next to the original.
 
 Compression levels: Fast / Normal / Maximum (`-mx=1/5/9` for 7z and ZIP, `-1/-3/-19` for zstd).
 
-### Opening the archives
+## Extract an archive from Finder
 
-**macOS Archive Utility cannot open password-protected 7z or ZIP archives (AES-256).** Use
-[The Unarchiver](https://apps.apple.com/app/the-unarchiver/id425424353) (free).
-To open archives by double-clicking, select an archive in Finder, press ⌘I, choose The Unarchiver
-under "Open with", and click "Change All…".
-
-The dialog explains this too: click the **?** button in its lower-left corner.
+1. Right-click a single `7z`, `zip`, or `tar.zst` archive and choose **Extract with PassArc**.
+2. If prompted, enter the archive password and click **Extract**. PassArc supports the AES-256 archives it creates.
+3. PassArc reveals the extracted folder in Finder. The folder is created next to the archive, with a number appended if the name is already in use.
 
 ## Install with Homebrew
 

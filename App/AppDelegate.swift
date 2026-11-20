@@ -6,6 +6,7 @@ import PassArcCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private var windows: Set<ArchiveWindowController> = []
+  private var extractionWindows: Set<ExtractionWindowController> = []
   private let notifier = Notifier()
 
   static func main() {
@@ -44,9 +45,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     return true
   }
 
-  /// Called for passarc://archive?path=...; one window per URL
+  /// Opens one window per Finder request.
   func application(_ application: NSApplication, open urls: [URL]) {
     for url in urls {
+      if let archive = ArchiveURL.parseExtraction(url) {
+        let controller = ExtractionWindowController(archive: archive, notifier: notifier)
+        controller.onClose = { [weak self, weak controller] in
+          if let controller { self?.extractionWindows.remove(controller) }
+        }
+        extractionWindows.insert(controller)
+        controller.show()
+        continue
+      }
       guard let items = ArchiveURL.parse(url) else { continue }
       let controller = ArchiveWindowController(items: items, notifier: notifier)
       controller.onClose = { [weak self, weak controller] in

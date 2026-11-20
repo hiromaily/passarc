@@ -34,6 +34,13 @@ echo "==> PassArcFinder (Finder Sync extension)"
   -o "$APPEX/Contents/MacOS/PassArcFinder" "$ROOT"/Extension/FinderSync.swift
 cp "$ROOT/Extension/Info.plist" "$APPEX/Contents/Info.plist"
 
+if [[ -n "${PASSARC_BUILD_VERSION:-}" ]]; then
+  for bundle in "$APP" "$APPEX"; do
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PASSARC_BUILD_VERSION" "$bundle/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $PASSARC_BUILD_VERSION" "$bundle/Contents/Info.plist"
+  done
+fi
+
 echo "==> Signing (ad hoc, inside first)"
 codesign --force --sign - --entitlements "$ROOT/Extension/Extension.entitlements" --timestamp=none "$APPEX"
 codesign --force --sign - --timestamp=none "$APP"

@@ -30,6 +30,10 @@ The dialog explains this too: click the **?** button in its lower-left corner.
 
 ## Install with Homebrew
 
+> [!WARNING]
+> ⚠️ **The current Homebrew release is ad hoc-signed.** macOS may block PassArc the
+> first time you open it. See [what to do if macOS blocks PassArc](#macos-says-passarc-was-not-opened).
+
 On macOS 15 or later with Apple Silicon, install PassArc with Homebrew.
 
 ```sh

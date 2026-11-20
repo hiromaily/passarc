@@ -16,7 +16,7 @@ cask "passarc" do
   uninstall quit: "local.passarc.app"
 
   caveats <<~EOS
-    Open PassArc once so macOS can discover its Finder extension.
-    Enable PassArcFinder under System Settings > General > Login Items & Extensions > Finder.
+    Open PassArc and follow the prompt to enable PassArcFinder.
+    You can also find PassArcFinder under System Settings > General > Login Items & Extensions > Finder.
   EOS
 end

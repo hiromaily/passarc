@@ -37,17 +37,11 @@ brew install --cask hiromaily/tap/passarc
 ```
 
 Homebrew installs `PassArc.app` in `/Applications` by default and installs `sevenzip`
-and `zstd`. Open PassArc once so macOS can discover its Finder Sync extension.
+and `zstd`. Open PassArc once to set up its Finder Sync extension. If PassArc prompts you to enable
+the extension, click **Open System Settings** and turn on **PassArcFinder**.
 
-The release is ad hoc signed. If macOS blocks first launch and you trust the release,
-follow [Apple's Open Anyway instructions](https://support.apple.com/en-us/102445).
-
-Enable **PassArcFinder** under **System Settings > General > Login Items & Extensions >
-Finder**. Then right-click a test file in Finder and choose **Archive with Password**.
-The archive should appear next to the original file.
-
-If you previously installed from source, remove the old copy in `~/Applications`
-to avoid having two copies registered for the Finder extension and the `passarc://` URL.
+Right-click a test file in Finder and choose **Archive with Password**. The archive should appear
+next to the original file. If macOS blocks the app or the menu item is missing, see [Troubleshooting](#troubleshooting).
 
 ### Update PassArc
 
@@ -85,8 +79,36 @@ The script compiles the app and the Finder Sync extension with `swiftc`, signs b
 `local.passarc.app.finder` entry starting with `+`, which means the extension is enabled.
 Without `--install`, it only builds into `build/scripts/`.
 
-If the menu item does not appear, close all Finder windows and open them again. If it still does not appear, open
-System Settings > General > Login Items & Extensions, and make sure PassArcFinder is turned on.
+## Troubleshooting
+
+### macOS says “PassArc” was not opened
+
+Releases through v0.1.1 use ad hoc signatures and can trigger this Gatekeeper warning. If you installed
+through Homebrew, [check for an update](#update-passarc) first.
+
+If you trust the copy you installed and want to open it, click **Done** in the warning. Open
+**System Settings → Privacy & Security**, scroll down to **Security**, and click **Open Anyway** for
+PassArc. Click **Open** when macOS asks again. If **Open Anyway** is missing, try opening PassArc again
+and return to **Privacy & Security**. [Apple’s instructions for opening an app](https://support.apple.com/en-us/102445)
+
+### “Archive with Password” is missing from Finder
+
+1. Open PassArc from Applications. If macOS blocks it, follow the steps above first.
+2. Go to **System Settings → General → Login Items & Extensions → Finder** and turn on **PassArcFinder**.
+3. Open a new Finder window and right-click a file or folder. If the item is still missing, wait for any
+   Finder copies or moves to finish, then hold **Option**, right-click Finder in the Dock, and choose
+   **Relaunch**. If **Relaunch** is unavailable, run `killall Finder` in Terminal. macOS should start Finder again.
+4. If you previously installed from source and now use Homebrew, check for a second copy in
+   `~/Applications`. Move the old copy to the Trash, then open the copy in `/Applications` again.
+
+To check the extension’s registration and see which copy macOS registered, run:
+
+```sh
+pluginkit -m -A -D -v -i local.passarc.app.finder
+```
+
+A leading `+` means the extension is enabled. If the command reports no matches, reopen PassArc and
+check **Login Items & Extensions** again.
 
 ### Notifications
 

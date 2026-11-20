@@ -170,7 +170,7 @@ struct ArchiveHelpView: View {
       Text(
         "Password-protected 7z and ZIP archives are encrypted with AES-256. macOS Archive Utility cannot open them."
       )
-      Text("To open them, use The Unarchiver (free on the App Store).")
+      Text("To open them, right-click the archive in Finder and choose Extract with PassArc.")
       Text("With 7z, file names are encrypted too, so nothing is visible without the password.")
       Text("tar.zst does not support passwords.")
     }

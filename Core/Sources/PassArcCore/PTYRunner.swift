@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import Synchronization
 
 public struct PTYResult: Sendable {
   public let exitCode: Int32
@@ -19,6 +20,7 @@ public final class PTYRunner: @unchecked Sendable {
   private let environment: [String: String]?
   private let password: String?
   private let process = Process()
+  private let stopped = Mutex(false)
 
   public init(
     executable: URL, arguments: [String], currentDirectory: URL,
@@ -34,7 +36,10 @@ public final class PTYRunner: @unchecked Sendable {
   public var processIdentifier: Int32 { process.processIdentifier }
 
   public func terminate() {
-    if process.isRunning { process.terminate() }
+    stopped.withLock { stopped in
+      stopped = true
+      if process.isRunning { process.terminate() }
+    }
   }
 
   /// Writes password + "\n" each time the output shows a prompt containing "password" (any case)
@@ -68,7 +73,10 @@ public final class PTYRunner: @unchecked Sendable {
     process.standardError = slaveHandle
 
     do {
-      try process.run()
+      try stopped.withLock { stopped in
+        if stopped { throw CancellationError() }
+        try self.process.run()
+      }
     } catch {
       close(master)
       close(slave)

@@ -15,7 +15,7 @@ public enum OutputNaming {
       exists: exists)
   }
 
-  private static func firstFree(in dir: URL, stem: String, suffix: String, exists: (URL) -> Bool)
+  static func firstFree(in dir: URL, stem: String, suffix: String, exists: (URL) -> Bool)
     -> URL
   {
     var candidate = dir.appending(path: stem + suffix, directoryHint: .notDirectory)

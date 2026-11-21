@@ -18,6 +18,7 @@ final class ArchiveWindowController: NSObject, NSWindowDelegate {
     super.init()
     window.delegate = self
     model.close = { [weak self] in self?.window.close() }
+    model.finishEditing = { [weak self] in self?.window.makeFirstResponder(nil) ?? false }
   }
 
   func show() {

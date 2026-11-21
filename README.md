@@ -8,6 +8,10 @@ password, and PassArc creates the archive next to the original.
 - Implementation plan (as written before implementation): [docs/superpowers/plans/2026-11-08-passarc.md](docs/superpowers/plans/2026-11-08-passarc.md)
 - Development notes (pitfalls and how the code handles them): [docs/development-notes.md](docs/development-notes.md)
 
+## Archive files or folders by dragging them into PassArc
+
+Open PassArc and drop files or folders onto its window. Choose your archive options in the dialog that opens. This works with the Finder extension disabled.
+
 ## Archive a folder from Finder
 
 1. Right-click a folder in Finder and choose **Archive with Password**.
@@ -67,8 +71,8 @@ brew install --cask hiromaily/tap/passarc
 ```
 
 Homebrew installs `PassArc.app` in `/Applications` by default and installs `sevenzip`
-and `zstd`. Open PassArc once to set up its Finder Sync extension. If PassArc prompts you to enable
-the extension, click **Open System Settings** and turn on **PassArcFinder**.
+and `zstd`. To use the Finder context menu, open PassArc, click **Enable Finder Extension…**,
+and turn on **PassArcFinder** in System Settings.
 
 Right-click a test file in Finder and choose **Archive with Password**. The archive should appear
 next to the original file. If macOS blocks the app or the menu item is missing, see [Troubleshooting](#troubleshooting).

@@ -17,6 +17,8 @@ PassArc is a macOS app that creates archives next to the files or folders select
 
 ## Build and verification
 
+Create temporary working directories for development and testing under `/tmp` with `mktemp -d /tmp/passarc.XXXXXX`. Remove every temporary directory created for the task when the work ends, including after failed or cancelled tests. For scripts, register an `EXIT` trap immediately after creating the directory so early exits also clean it up.
+
 Run these commands from the repository root.
 
 Start with the files and focused tests for the behavior you're changing.
@@ -36,6 +38,7 @@ Bare Swift filenames in the table are in `Core/Sources/PassArcCore/`. Run the fu
 - `scripts/build.sh` builds the app and Finder Sync extension and verifies their signatures. The app bundle is generated at `build/scripts/PassArc.app`.
 - If the compiler fails to start or cannot write its module cache, use the diagnostics and fallback in [Building without Xcode](docs/development-notes.md#building-without-xcode).
 - `scripts/snapshot.sh <output-directory>` renders the dialog to PNG files. For changes to Finder integration, dialog launch, or notifications, check the affected workflow on macOS.
+- For launch-window changes, follow [Verify the drag-and-drop launch window](docs/development-notes.md#verify-the-drag-and-drop-launch-window) through archive creation and content verification.
 - For completion notification changes, click the notification and verify that Finder reveals every expected output. Include outputs in different parent folders when checking batch compression.
 - For individual folder compression, verify that stopping a batch or encountering a failed folder preserves archives already saved and removes any unfinished archive.
 - `scripts/build.sh --install` replaces `~/Applications/PassArc.app` and registers the Finder Sync extension. Use it when an installed build is needed.

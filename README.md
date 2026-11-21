@@ -90,10 +90,25 @@ For release packaging and tap updates, see the [Homebrew release guide](homebrew
 
 ## Build and install from source
 
+### Development environment
+
 - macOS 15 or later (Apple Silicon)
-- Xcode Command Line Tools (`xcode-select --install`). **Xcode itself is not needed.** It could not be installed
-  on this Mac's macOS, so the app is built with `swiftc` instead (since 2026-11-08).
-- Homebrew: `brew install sevenzip zstd`
+- Xcode Command Line Tools compatible with your macOS version. Install them with `xcode-select --install`.
+  The app and Finder Sync extension build with `swiftc` and a macOS 15 or later SDK.
+- Swift 6 and Swift Package Manager with support for the `swift-tools-version: 6.0` manifest.
+  The Core test suite also requires the Swift Testing module (`import Testing`).
+- Homebrew packages `sevenzip` and `zstd`. Install them with `brew install sevenzip zstd`.
+  The app and Core integration tests use the installed `7zz` and `zstd` binaries.
+
+Check the selected developer directory, Swift version, and SDK before building.
+
+```sh
+xcode-select -p
+swift --version
+xcrun --sdk macosx --show-sdk-version
+```
+
+### Build and register the Finder extension
 
 7-Zip (`7zz`) is not bundled. PassArc looks for it in `/opt/homebrew/bin`, then `/usr/local/bin`. 7-Zip is licensed
 under the GNU LGPL and other licenses; because it is not bundled, this repository does not redistribute it.
@@ -156,11 +171,18 @@ appears, open System Settings > Notifications > PassArc and turn on "Allow notif
 
 ## Tests
 
+Run from the repository root.
+
 ```sh
-swift test --package-path <this directory>/Core
+swift test --package-path Core
 ```
 
-The tests run the real `7zz` and `zstd`, so install them with Homebrew first.
+If SwiftPM cannot resolve `.macOS(.v15)`, check which toolchain the commands above select.
+A Command Line Tools installation containing older `PackageDescription` files can report this error
+even when `swift --version` reports Swift 6. If the test build reports `no such module 'Testing'`,
+check that the selected toolchain includes Swift Testing. Repair or reinstall the affected toolchain
+if its files are inconsistent or incomplete. See the [development notes](docs/development-notes.md)
+for how to select Command Line Tools for a single command.
 
 ## Verification results (2026-11-08, macOS 15.7, 7-Zip 26.06)
 

@@ -22,12 +22,38 @@ individual command. If the default Clang module cache is unwritable, give the co
 The following combination has built and signed both PassArc targets successfully.
 
 ```sh
-DEVELOPER_DIR=/Library/Developer/CommandLineTools \
-  CLANG_MODULE_CACHE_PATH="$(mktemp -d)" scripts/build.sh
+(
+  work_dir="$(mktemp -d /tmp/passarc.XXXXXX)" || exit 1
+  trap 'rm -rf -- "$work_dir"' EXIT
+  DEVELOPER_DIR=/Library/Developer/CommandLineTools \
+    CLANG_MODULE_CACHE_PATH="$work_dir/module-cache" scripts/build.sh
+)
 ```
 
 Run `swift test --package-path Core` separately. If SwiftPM fails while compiling `Package.swift`, record the
 manifest error and selected Swift and SDK versions. A successful app build does not exercise the package manifest.
+
+If `xcodebuild` fails to start and standalone Command Line Tools fail to resolve `.macOS(.v15)` in
+`Package.swift`, run Xcode's Swift executable directly with its matching SDK and Testing framework. Keep
+`DEVELOPER_DIR` on Command Line Tools for subprocesses that use `xcrun`. All Core tests use Swift Testing, so
+`--disable-xctest` skips the XCTest platform lookup. This ran all 75 tests with Xcode's Swift 6.0.2 and macOS
+15.1 SDK on a host where Command Line Tools reported Swift 6.3.3 and macOS 26.5 SDK.
+
+```sh
+(
+  work_dir="$(mktemp -d /tmp/passarc.XXXXXX)" || exit 1
+  trap 'rm -rf -- "$work_dir"' EXIT
+  xcode_dir=/Applications/Xcode.app/Contents/Developer
+  platform_dir="$xcode_dir/Platforms/MacOSX.platform/Developer"
+  framework_dir="$platform_dir/Library/Frameworks"
+  export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+  export SDKROOT="$platform_dir/SDKs/MacOSX.sdk"
+  export CLANG_MODULE_CACHE_PATH="$work_dir/module-cache"
+  "$xcode_dir/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift" test \
+    --package-path Core --scratch-path "$work_dir/build" --disable-xctest \
+    -Xswiftc -F -Xswiftc "$framework_dir" -Xlinker -rpath -Xlinker "$framework_dir"
+)
+```
 
 - **The extension's entry point is `NSExtensionMain`.** Link the appex with `-Xlinker -e -Xlinker _NSExtensionMain`
   and compile it (and any library it links) with `-application-extension`.
@@ -42,6 +68,32 @@ manifest error and selected Swift and SDK versions. A successful app build does 
 - **Stale copies steal the URL scheme.** Every copy of the app that LaunchServices has seen registers `passarc://`.
   A throwaway build in another folder received the URL instead of the installed app. `build.sh --install` now
   unregisters the copy in `build/` (`lsregister -u`). To inspect: `lsregister -dump URLSchemeBinding | grep passarc`.
+
+## Verify the drag-and-drop launch window
+
+Build the app and use a macOS session where PassArcFinder is disabled. Open the built PassArc directly and check that it shows **Drop files or folders here** and **Enable Finder Extension…**.
+
+Run this block from the repository root. Leave it waiting in Terminal while you test in Finder.
+
+```sh
+(
+  work_dir="$(mktemp -d /tmp/passarc.XXXXXX)" || exit 1
+  trap 'rm -rf -- "$work_dir"' EXIT
+  mkdir "$work_dir/sample-folder" || exit 1
+  printf 'file contents\n' > "$work_dir/sample.txt"
+  printf 'folder contents\n' > "$work_dir/sample-folder/nested.txt"
+  open "$work_dir" || exit 1
+  printf 'Press Return after compression completes: '
+  read -r reply || exit 1
+  7zz t "$work_dir/Archive.7z" &&
+    7zz l "$work_dir/Archive.7z"
+)
+```
+
+1. Arrange Finder and the PassArc launch window side by side so both are visible. Select `sample.txt` and `sample-folder` in Finder and drag them together onto PassArc. The drop area should highlight and one **Archive** dialog should open.
+2. Choose **7z**, clear **Protect with a password**, and click **Compress**. Check that `Archive.7z` appears next to the source items, then press Return in Terminal. The integrity check should pass and the listing should contain `sample.txt` and `sample-folder/nested.txt`. The temporary directory is removed when the block exits.
+
+If a UI automation tool cannot locate both windows on the same screen, perform the drag in Finder directly. Opening the launch window verifies startup. A successful drag and archive listing verify the full workflow.
 
 ## macOS app behaviour
 

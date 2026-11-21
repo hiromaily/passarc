@@ -40,6 +40,16 @@ struct ArchiveDialogView: View {
           }
           .fixedSize()
         }
+        if model.state.usePassword, let note = model.state.format.passwordCompatibilityNote {
+          GridRow {
+            Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+            Text(note)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+              .frame(width: 250, alignment: .leading)
+          }
+        }
         GridRow(alignment: .firstTextBaseline) {
           label("Compression")
           Picker("Compression", selection: $model.state.level) {
@@ -151,6 +161,17 @@ struct ArchiveDialogView: View {
 }
 
 extension ArchiveFormat {
+  fileprivate var passwordCompatibilityNote: String? {
+    switch self {
+    case .sevenZip:
+      "AES-256 also encrypts file names. Recipients may need a compatible app to open this archive."
+    case .zip:
+      "Recipients may need an app that supports AES-256 encrypted ZIP archives."
+    case .tarZst:
+      nil
+    }
+  }
+
   var displayName: String {
     switch self {
     case .sevenZip: "7z"

@@ -23,7 +23,7 @@ Right-click in Finder or drop files into PassArc. Save the archive right next to
 | **Check format compatibility** | See what the recipient will need to open the archive before you compress. |
 | **Compress folders individually** | Select several folders and save a separate archive next to each one in a single run. |
 | **Extract from Finder** | Open 7z, ZIP, and tar.zst archives with **Extract with PassArc**. Enter the password when prompted. |
-| **Verify before saving** | PassArc verifies each archive before giving it its final name. Click the completion notification to reveal the result in Finder. |
+| **Verify and share** | PassArc verifies each archive before giving it its final name. Use **Share** or **Show in Finder** in the completion window. You can also click the completion notification to reveal the result in Finder. |
 
 ## Install with Homebrew
 

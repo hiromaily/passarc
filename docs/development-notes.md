@@ -55,6 +55,12 @@ If `xcodebuild` fails to start and standalone Command Line Tools fail to resolve
 )
 ```
 
+If the SwiftPM manifest fails with `sandbox_apply: Operation not permitted` inside an existing sandbox, add
+`--disable-sandbox` to the command above. If the build cannot find `TestingMacros`, add `--build-system native`
+to use the Xcode toolchain's SwiftPM build backend. If only the PTY argument check fails with an empty
+`psArgs`, try `/bin/ps -o args= -p $$`. When the environment denies `ps`, rerun the suite in an authorized
+environment where process arguments are visible.
+
 - **The extension's entry point is `NSExtensionMain`.** Link the appex with `-Xlinker -e -Xlinker _NSExtensionMain`
   and compile it (and any library it links) with `-application-extension`.
 - **The appex `Info.plist` needs `CFBundlePackageType = XPC!`** and `NSExtension` with
@@ -94,6 +100,30 @@ Run this block from the repository root. Leave it waiting in Terminal while you 
 2. Choose **7z**, clear **Protect with a password**, and click **Compress**. Check that `Archive.7z` appears next to the source items, then press Return in Terminal. The integrity check should pass and the listing should contain `sample.txt` and `sample-folder/nested.txt`. The temporary directory is removed when the block exits.
 
 If a UI automation tool cannot locate both windows on the same screen, perform the drag in Finder directly. Opening the launch window verifies startup. A successful drag and archive listing verify the full workflow.
+
+### Open the archive dialog with a test selection
+
+To exercise the result window, pass test paths directly to the built app using its Finder URL contract.
+For example, use a small folder followed by a larger folder to check stopping a batch after the first save.
+
+```sh
+(
+  work_dir="$(mktemp -d /tmp/passarc.XXXXXX)" || exit 1
+  trap 'rm -rf -- "$work_dir"' EXIT
+  mkdir "$work_dir/small" "$work_dir/large"
+  printf 'PassArc stop test\n' > "$work_dir/small/first.txt"
+  mkfile -n 8g "$work_dir/large/large.dat"
+  open -a "$PWD/build/scripts/PassArc.app" \
+    "passarc://archive?path=$work_dir/small&path=$work_dir/large" || exit 1
+  printf 'Press Return after checking the saved archive and cleanup in %s\n' "$work_dir"
+  read -r finish
+)
+```
+
+Enable **Create a separate archive for each folder**, start compression, then click **Stop** during the
+second folder. Confirm that **Share** and **Show in Finder** target only the first archive and that no
+`.partial` files remain. If a restricted shell reports `kLSNoExecutableErr` for a signed
+bundle that launches normally from Finder, run the command in an authorized macOS session.
 
 ## macOS app behaviour
 

@@ -8,7 +8,8 @@ final class ArchiveDialogModel {
   enum Phase: Equatable {
     case editing
     case running(JobPhase)
-    case failed(String)
+    case completed([URL])
+    case failed(String, saved: [URL])
   }
 
   let items: [URL]
@@ -99,21 +100,26 @@ final class ArchiveDialogModel {
         }
         job = nil
         notifier.postArchivesCreated(outputs)
-        close()
+        phase = .completed(outputs)
       } catch ArchiveError.cancelled {
         job = nil
         notifier.postArchivesCreated(outputs)
-        close()
+        if outputs.isEmpty {
+          close()
+        } else {
+          let saved = outputs.count == 1 ? "1 archive saved." : "\(outputs.count) archives saved."
+          phase = .failed("Compression stopped.\n\n\(saved)", saved: outputs)
+        }
       } catch {
         job = nil
         let detail = (error as? ArchiveError)?.message ?? error.localizedDescription
         guard let currentFolder else {
-          phase = .failed(detail)
+          phase = .failed(detail, saved: outputs)
           return
         }
         notifier.postArchivesCreated(outputs)
         let saved = outputs.count == 1 ? "1 archive saved." : "\(outputs.count) archives saved."
-        phase = .failed("\(currentFolder)\n\(detail)\n\n\(saved)")
+        phase = .failed("\(currentFolder)\n\(detail)\n\n\(saved)", saved: outputs)
       }
     }
   }

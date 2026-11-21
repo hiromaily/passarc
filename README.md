@@ -1,217 +1,117 @@
-# PassArc
+<h1 align="center">PassArc</h1>
 
-A small macOS app (proof of concept, for use on your own Mac) that adds **Archive with Password** to the top level
-of the Finder context menu. Right-click a folder or file, choose a format, a compression level and an optional
-password, and PassArc creates the archive next to the original.
+<p align="center"><strong>Password-protected archives for macOS.</strong><br>
+Right-click in Finder or drop files into PassArc. Save the archive right next to the originals.</p>
 
-- Design: [docs/superpowers/specs/2026-11-08-passarc-design.md](docs/superpowers/specs/2026-11-08-passarc-design.md)
-- Implementation plan (as written before implementation): [docs/superpowers/plans/2026-11-08-passarc.md](docs/superpowers/plans/2026-11-08-passarc.md)
-- Development notes (pitfalls and how the code handles them): [docs/development-notes.md](docs/development-notes.md)
+<p align="center">
+  <a href="#install-with-homebrew">Install</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="https://github.com/hiromaily/passarc/releases">Releases</a>
+</p>
 
-## Archive files or folders by dragging them into PassArc
+<p align="center"><img src="docs/images/archive-dialog.png" width="398" alt="PassArc’s Archive dialog showing 7z encryption, compression levels, and Generate Password and Copy Password buttons"></p>
 
-Open PassArc and drop files or folders onto its window. Choose your archive options in the dialog that opens. This works with the Finder extension disabled.
+## Features
 
-## Archive a folder from Finder
-
-1. Right-click a folder in Finder and choose **Archive with Password**.
-
-   <img src="docs/images/finder-context-menu.png" alt="Finder context menu with Archive with Password highlighted" width="227">
-
-2. In the **Archive** dialog, choose a format and compression level. Leave **Protect with a password** checked and enter the password in both fields, or clear it to create an unprotected archive. Click **Compress** to save the archive next to the folder.
-
-   Use **Generate Password** to fill both fields with a random password. Use **Copy Password** before clicking **Compress** to copy the matching password to the clipboard for sharing through a separate channel.
-
-   When you select multiple folders, turn on **Create a separate archive for each folder** to save one archive next to each source. If you stop the operation or a folder fails, any archives already saved are kept.
-
-   <img src="docs/images/archive-dialog.png" alt="PassArc Archive dialog with 7z, Normal compression, and password protection selected" width="378">
-
-## Formats
-
-| Format | Password | Notes |
-| --- | --- | --- |
-| 7z | AES-256 | File names are encrypted too (`-mhe=on`). Default. |
-| ZIP | AES-256 | File names are visible. The weak ZipCrypto method is never used. |
-| tar.zst | none | Zstandard. Fastest. Not available while "Protect with a password" is on. |
-
-Compression levels: Fast / Normal / Maximum (`-mx=1/5/9` for 7z and ZIP, `-1/-3/-19` for zstd).
-
-### Comparison with macOS Finder compression
-
-Finder’s built-in **Compress** command creates an unencrypted ZIP archive. [Apple’s Finder guide](https://support.apple.com/guide/mac-help/zip-and-unzip-files-and-folders-on-mac-mchlp2528/mac)
-
-| Format | Performance | Security | Archive size |
-| --- | --- | --- | --- |
-| macOS Finder ZIP | Baseline | No encryption | Baseline |
-| PassArc 7z | Higher compression settings can take longer than Finder ZIP | Optional AES-256 encryption for both file contents and names | Often smaller than Finder ZIP for text or folders with many similar files |
-| PassArc ZIP | Adjustable compression level. Speed relative to Finder ZIP depends on the setting and input | Optional AES-256 encryption for file contents. File names remain visible | Typically similar to Finder ZIP, depending on the setting and input |
-| PassArc tar.zst | Fast and Normal favor compression and extraction speed | No encryption | Can be smaller than Finder ZIP for text and logs. Already compressed files such as JPEGs and MP4s usually see little benefit |
-
-The speed and size comparisons are estimates. In Zstandard’s Linux benchmark, `zstd -1` compressed about 4.9× as fast as `zlib -1`, decompressed about 4.0× as fast, and produced about 5% less compressed data. For an end-to-end comparison on macOS, include the time PassArc spends verifying the archive after creation. [Zstandard benchmark](https://github.com/meta/zstd#benchmarks) · [7z format documentation](https://www.7-zip.org/7z.html)
-
-## Extract an archive from Finder
-
-1. Right-click a single `7z`, `zip`, or `tar.zst` archive and choose **Extract with PassArc**.
-
-   <img src="docs/images/finder-extract-context-menu.png" alt="Finder context menu with Extract with PassArc highlighted" width="239">
-
-2. If prompted, enter the archive password and click **Extract**. PassArc supports the AES-256 archives it creates.
-3. PassArc reveals the extracted folder in Finder. The folder is created next to the archive, with a number appended if the name is already in use.
+| Feature | What you can do |
+| --- | --- |
+| **Archive from Finder** | Right-click files or folders and choose **Archive with Password**. |
+| **Drag and drop** | Drop files or folders onto the PassArc window, even with the Finder extension disabled. |
+| **Encrypt with AES-256** | Protect 7z and ZIP archives with a password. Protected 7z archives also hide file names. |
+| **Generate and copy passwords** | Fill both password fields with a random 24-character password and copy it to share separately. |
+| **Check format compatibility** | See what the recipient will need to open the archive before you compress. |
+| **Compress folders individually** | Select several folders and save a separate archive next to each one in a single run. |
+| **Extract from Finder** | Open 7z, ZIP, and tar.zst archives with **Extract with PassArc**. Enter the password when prompted. |
+| **Verify before saving** | PassArc verifies each archive before giving it its final name. Click the completion notification to reveal the result in Finder. |
 
 ## Install with Homebrew
 
-> [!WARNING]
-> ⚠️ **The current Homebrew release is ad hoc-signed.** macOS may block PassArc the
-> first time you open it. See [what to do if macOS blocks PassArc](#macos-says-passarc-was-not-opened).
-
-On macOS 15 or later with Apple Silicon, install PassArc with Homebrew.
+PassArc requires **macOS 15 or later** on **Apple Silicon**. The cask also installs `sevenzip` and `zstd`.
 
 ```sh
 brew install --cask hiromaily/tap/passarc
 ```
 
-Homebrew installs `PassArc.app` in `/Applications` by default and installs `sevenzip`
-and `zstd`. To use the Finder context menu, open PassArc, click **Enable Finder Extension…**,
-and turn on **PassArcFinder** in System Settings.
+> [!NOTE]
+> This README describes the features on `main`. The current Homebrew release, [v0.3.0](https://github.com/hiromaily/passarc/releases/tag/v0.3.0), includes Finder compression and extraction and password generation and copying. For the drag-and-drop window, format compatibility guidance, and separate archives for multiple folders, [build from source](#build-from-source).
 
-Right-click a test file in Finder and choose **Archive with Password**. The archive should appear
-next to the original file. If macOS blocks the app or the menu item is missing, see [Troubleshooting](#troubleshooting).
+The public build is ad hoc-signed. If macOS blocks the first launch, see [how to open PassArc](#macos-says-passarc-was-not-opened).
 
-### Update PassArc
-
-If PassArc is already installed through Homebrew, run the following commands to install the latest release.
+<details>
+<summary>Update or uninstall with Homebrew</summary>
 
 ```sh
 brew update
 brew upgrade --cask hiromaily/tap/passarc
 ```
 
-### Uninstall PassArc
-
 ```sh
 brew uninstall --cask hiromaily/tap/passarc
 ```
 
-For release packaging and tap updates, see the [Homebrew release guide](homebrew/README.md).
+</details>
 
-## Build and install from source
+## Quick start
 
-### Development environment
+### Create an archive
 
-- macOS 15 or later (Apple Silicon)
-- Xcode Command Line Tools compatible with your macOS version. Install them with `xcode-select --install`.
-  The app and Finder Sync extension build with `swiftc` and a macOS 15 or later SDK.
-- Swift 6 and Swift Package Manager with support for the `swift-tools-version: 6.0` manifest.
-  The Core test suite also requires the Swift Testing module (`import Testing`).
-- Homebrew packages `sevenzip` and `zstd`. Install them with `brew install sevenzip zstd`.
-  The app and Core integration tests use the installed `7zz` and `zstd` binaries.
+1. **From Finder**, enable **PassArcFinder** in **System Settings → General → Login Items & Extensions → Finder**, then right-click files or folders and choose **Archive with Password**. **From PassArc**, open the app and drop your items onto its window.
+2. Choose a format and compression level. With **Protect with a password** enabled, enter a password in both fields or click **Generate Password**. Use **Copy Password** if you need to share it separately. To select **tar.zst**, turn off password protection.
+3. Click **Compress**. PassArc saves the verified archive next to the original items. To create one archive, select items from the same parent folder. To create one archive per folder, select only folders and turn on **Create a separate archive for each folder**. Any archives already saved are kept if the batch stops.
 
-Check the selected developer directory, Swift version, and SDK before building.
+<details>
+<summary>See the Finder menus</summary>
 
-```sh
-xcode-select -p
-swift --version
-xcrun --sdk macosx --show-sdk-version
-```
+<p>
+  <img src="docs/images/finder-context-menu.png" width="227" alt="Finder context menu with Archive with Password highlighted">
+  <img src="docs/images/finder-extract-context-menu.png" width="239" alt="Finder context menu with Extract with PassArc highlighted">
+</p>
 
-### Build and register the Finder extension
+</details>
 
-7-Zip (`7zz`) is not bundled. PassArc looks for it in `/opt/homebrew/bin`, then `/usr/local/bin`. 7-Zip is licensed
-under the GNU LGPL and other licenses; because it is not bundled, this repository does not redistribute it.
+### Extract an archive
 
-```sh
-<this directory>/scripts/build.sh --install
-```
+Right-click a single `.7z`, `.zip`, or `.tar.zst` file in Finder and choose **Extract with PassArc**. If prompted, enter the password and click **Extract**. PassArc creates a folder beside the archive and reveals it in Finder.
 
-The script compiles the app and the Finder Sync extension with `swiftc`, signs both ad hoc, copies the app to
-`~/Applications/PassArc.app`, and registers the extension with `pluginkit`. The last line it prints should be a
-`local.passarc.app.finder` entry starting with `+`, which means the extension is enabled.
-Without `--install`, it only builds into `build/scripts/`.
+## Choose an archive format
+
+| Format | Password protection | When to use it |
+| --- | --- | --- |
+| **7z** (default) | AES-256 for contents and file names | Keep file names private in a password-protected archive. |
+| **ZIP** | AES-256 for contents | Choose a familiar format when the recipient has an app that supports AES-encrypted ZIP. File names stay visible. |
+| **tar.zst** | Unavailable | Compress files with Zstandard when no password is needed. |
+
+Each format offers **Fast**, **Normal**, and **Maximum** compression. Recipients who use macOS can open encrypted archives with PassArc or another compatible app such as The Unarchiver.
 
 ## Troubleshooting
 
 ### macOS says “PassArc” was not opened
 
-Ad hoc-signed releases can trigger this Gatekeeper warning. If you installed
-through Homebrew, [check for an update](#update-passarc) first.
-
-If you trust the copy you installed and want to open it, click **Done** in the warning. Open
-**System Settings → Privacy & Security**, scroll down to **Security**, and click **Open Anyway** for
-PassArc. Click **Open** when macOS asks again. If **Open Anyway** is missing, try opening PassArc again
-and return to **Privacy & Security**. [Apple’s instructions for opening an app](https://support.apple.com/en-us/102445)
+If you trust the copy you installed, click **Done** in the warning, then open **System Settings → Privacy & Security** and choose **Open Anyway** for PassArc. If the option is missing, try opening PassArc again and return to **Privacy & Security**. [Apple’s instructions for opening an app](https://support.apple.com/en-us/102445)
 
 ### “Archive with Password” is missing from Finder
 
-1. Open PassArc from Applications. If macOS blocks it, follow the steps above first.
-2. Go to **System Settings → General → Login Items & Extensions → Finder** and turn on **PassArcFinder**.
-3. Open a new Finder window and right-click a file or folder. If the item is still missing, wait for any
-   Finder copies or moves to finish, then hold **Option**, right-click Finder in the Dock, and choose
-   **Relaunch**. If **Relaunch** is unavailable, run `killall Finder` in Terminal. macOS should start Finder again.
-4. If you previously installed from source and now use Homebrew, check for a second copy in
-   `~/Applications`. Move the old copy to the Trash, then open the copy in `/Applications` again.
+Open PassArc once, then confirm **PassArcFinder** is enabled under **System Settings → General → Login Items & Extensions → Finder**. Open a new Finder window and try again. If the menu is still missing, wait for current Finder operations to finish, then hold **Option**, right-click Finder in the Dock, and choose **Relaunch**.
 
-To check the extension’s registration and see which copy macOS registered, run:
+If you have separate Homebrew and source builds installed, check which copy registered its extension with `pluginkit -m -A -D -v -i local.passarc.app.finder`. A leading `+` means the extension is enabled.
 
-```sh
-pluginkit -m -A -D -v -i local.passarc.app.finder
-```
+### Completion notifications are missing
 
-A leading `+` means the extension is enabled. If the command reports no matches, reopen PassArc and
-check **Login Items & Extensions** again.
+Open **System Settings → Notifications → PassArc** and turn on **Allow Notifications**.
 
-### Notifications
+## Build from source
 
-PassArc posts a notification when an archive is ready. Click it to reveal the file in Finder. If no notification
-appears, open System Settings > Notifications > PassArc and turn on "Allow notifications".
-
-## How it works
-
-- The Finder Sync extension (sandboxed) only shows the menu item. It sends the selected paths to the app with a
-  `passarc://archive?path=...` URL.
-- The app (not sandboxed, no Dock icon) shows the dialog and runs `7zz`, or `tar` piped into `zstd`.
-- The password is never passed as a command-line argument (it would be visible in `ps`). PassArc answers 7-Zip's
-  "Enter password" prompt through a pseudo-terminal.
-- The archive is written under a temporary `.partial` name, verified with the same password (`7zz t`, or
-  `zstd -t`), and only then renamed. If you stop it, or it fails, the partial file is deleted.
-- `.DS_Store` and `._*` files are left out. Symbolic links are stored as links.
-
-## Tests
-
-Run from the repository root.
+On Apple Silicon with macOS 15 or later, use Swift 6 and Xcode Command Line Tools with a macOS 15 or later SDK. Run these commands from the repository root.
 
 ```sh
+brew install sevenzip zstd
+scripts/build.sh --install
 swift test --package-path Core
 ```
 
-If SwiftPM cannot resolve `.macOS(.v15)`, check which toolchain the commands above select.
-A Command Line Tools installation containing older `PackageDescription` files can report this error
-even when `swift --version` reports Swift 6. If the test build reports `no such module 'Testing'`,
-check that the selected toolchain includes Swift Testing. Repair or reinstall the affected toolchain
-if its files are inconsistent or incomplete. See the [development notes](docs/development-notes.md)
-for how to select Command Line Tools for a single command.
+`scripts/build.sh --install` installs PassArc in `~/Applications` and registers the Finder extension. Use `scripts/build.sh` to build the app in `build/scripts/`. Core tests require Swift Testing.
 
-## Verification results (2026-11-08, macOS 15.7, 7-Zip 26.06)
+PassArc keeps passwords out of saved settings, command-line arguments, and logs. Compression excludes Finder metadata files (`.DS_Store` and `._*`) and preserves symbolic links. If archiving fails or is cancelled, PassArc removes the unfinished archive.
 
-End-to-end checks from section 7 of the design.
-
-| # | Check | Result | How |
-| --- | --- | --- | --- |
-| 1 | "Archive with Password" appears at the top level of the Finder context menu | OK | Checked by hand in Finder |
-| 2 | A password-protected 7z opens with the password, and file names are hidden without it | OK (7-Zip). **Not checked with The Unarchiver** (not installed) | `7zz t -phello` on an archive made from the dialog: "Everything is Ok". `7zz l` without the password: "Cannot open encrypted archive" |
-| 3 | ZIP uses AES-256 | OK | Test `job_zipUsesAES256` (`Method = AES-256`). Same code path as the app, not checked from the dialog |
-| 4 | tar.zst extracts to the same content | OK | Test `job_createsTarZst` |
-| 5 | The password does not appear in `ps` | OK | Test `pty_createsEncrypted7zWithoutPasswordInArguments` |
-| 6 | Stopping leaves no partial file | OK | Test `job_cancelRemovesPartial` (7z and tar.zst). Not checked from the dialog |
-| 7 | Levels change size and time | OK | `/usr/share/man` (20 MB), same arguments as the app, table below |
-
-| Level | 7z | tar.zst |
-| --- | --- | --- |
-| Fast | 7.7 MB, 0.4 s | 9.8 MB, 0.2 s |
-| Normal | 5.8 MB, 5.9 s | 8.4 MB, 0.2 s |
-| Maximum | 5.7 MB, 6.6 s | 6.1 MB, 7.1 s |
-
-Also checked by hand: the dialog comes to the front, all text is in English with nothing cut off, tar.zst is greyed
-out while a password is on, password messages appear when you leave a field, the **?** help, and the notification.
-
-macOS Archive Utility could not extract a password-protected 7z made by PassArc (reported by the user), which is
-why the dialog and this README point to The Unarchiver.
+[Development notes and build troubleshooting](docs/development-notes.md) · [Roadmap](docs/roadmap.md) · [Design](docs/superpowers/specs/2026-11-08-passarc-design.md) · [Implementation plan](docs/superpowers/plans/2026-11-08-passarc.md) · [Homebrew release guide](homebrew/README.md)

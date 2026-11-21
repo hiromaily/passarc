@@ -41,6 +41,7 @@ Bare Swift filenames in the table are in `Core/Sources/PassArcCore/`. Run the fu
 - For launch-window changes, follow [Verify the drag-and-drop launch window](docs/development-notes.md#verify-the-drag-and-drop-launch-window) through archive creation and content verification.
 - For completion notification changes, click the notification and verify that Finder reveals every expected output. Include outputs in different parent folders when checking batch compression.
 - For individual folder compression, verify that stopping a batch or encountering a failed folder preserves archives already saved and removes any unfinished archive.
+- For changes to the archive result window, verify **Share** and **Show in Finder** on success and after stopping or failing a batch. Check that the actions include only saved outputs, including outputs in different parent folders.
 - `scripts/build.sh --install` replaces `~/Applications/PassArc.app` and registers the Finder Sync extension. Use it when an installed build is needed.
 
 See [README.md](README.md) for setup and verification steps and [development notes](docs/development-notes.md) for macOS and 7-Zip implementation details.

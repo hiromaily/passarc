@@ -8,11 +8,8 @@ Make it easier to create a password-protected archive from Finder, share it, and
 - **Show format compatibility before compression.** The format selector explains that password-protected 7z archives encrypt file names and that recipients may need a compatible app to open AES-256 archives.
 - **Compress selected folders individually.** Select multiple folders and choose **Create a separate archive for each folder** to save one archive next to each source.
 - **Add a drag-and-drop launch window.** Open PassArc and drop files or folders onto it to start archiving, including when the Finder extension is disabled.
+- **Share from the completion screen.** Use **Share** or **Show in Finder** after PassArc verifies and saves the archives. These actions also work for archives saved before a batch stops or fails.
 
 ## On hold
 
-2. **Share from the completion screen.** Offer Share and Show in Finder actions after the archive has been verified and saved.
-
-## Distribution
-
-**Sign and notarize public builds.** Reduce Gatekeeper friction on first launch. Prioritize this alongside the next feature release if the focus shifts to helping new users get started.
+- **Sign and notarize public builds.** Resume when the signing and notarization prerequisites are ready.

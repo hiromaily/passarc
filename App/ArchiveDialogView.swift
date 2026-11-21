@@ -1,3 +1,4 @@
+import AppKit
 import PassArcCore
 import SwiftUI
 
@@ -7,18 +8,24 @@ struct ArchiveDialogView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
-      Text(model.title)
+      Text(title)
         .font(.headline)
         .lineLimit(1)
         .truncationMode(.middle)
       switch model.phase {
       case .editing: editor
       case .running(let phase): running(phase)
-      case .failed(let message): failed(message)
+      case .completed(let outputs): completed(outputs)
+      case .failed(let message, let saved): failed(message, saved: saved)
       }
     }
     .padding(20)
     .frame(minWidth: 380, maxWidth: 480)
+  }
+
+  private var title: String {
+    if case .completed = model.phase { return "Compression complete" }
+    return model.title
   }
 
   // MARK: - Input
@@ -148,9 +155,23 @@ struct ArchiveDialogView: View {
     }
   }
 
-  // MARK: - Failed
+  // MARK: - Results
 
-  private func failed(_ message: String) -> some View {
+  private func completed(_ outputs: [URL]) -> some View {
+    VStack(alignment: .leading, spacing: 10) {
+      if outputs.count == 1, let output = outputs.first {
+        Text(output.lastPathComponent)
+          .lineLimit(1)
+          .truncationMode(.middle)
+          .help(output.path)
+      } else {
+        Text("\(outputs.count) archives saved.")
+      }
+      resultActions(outputs, closeTitle: "Done")
+    }
+  }
+
+  private func failed(_ message: String, saved: [URL]) -> some View {
     VStack(alignment: .leading, spacing: 10) {
       ScrollView {
         Text(message)
@@ -159,11 +180,22 @@ struct ArchiveDialogView: View {
           .frame(maxWidth: .infinity, alignment: .leading)
       }
       .frame(maxHeight: 200)
-      HStack {
-        Spacer()
-        Button("Close") { model.close() }
-          .keyboardShortcut(.defaultAction)
+      resultActions(saved, closeTitle: "Close")
+    }
+  }
+
+  private func resultActions(_ outputs: [URL], closeTitle: String) -> some View {
+    HStack {
+      if !outputs.isEmpty {
+        ShareLink(items: outputs) { Text("Share") }
+        Button("Show in Finder") {
+          NSWorkspace.shared.activateFileViewerSelecting(outputs)
+        }
       }
+      Spacer()
+      Button(closeTitle) { model.close() }
+        .keyboardShortcut(.defaultAction)
+        .keyboardShortcut(.cancelAction)
     }
   }
 }

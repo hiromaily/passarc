@@ -38,3 +38,12 @@ Bare Swift filenames in the table are in `Core/Sources/PassArcCore/`. Run the fu
 - `scripts/build.sh --install` replaces `~/Applications/PassArc.app` and registers the Finder Sync extension. Use it when an installed build is needed.
 
 See [README.md](README.md) for setup and verification steps and [development notes](docs/development-notes.md) for macOS and 7-Zip implementation details.
+
+## Commit and pull request checks
+
+When asked to commit changes or open a pull request, verify that every intended file reaches the commit and the pull request.
+
+1. Run `git status --short --branch --untracked-files=all` before editing. Note existing changes so you can distinguish them from the files you add or edit for the request.
+2. Before committing, run the same status command and review both `git diff` and `git diff --cached`. Explicitly stage every in-scope file, including new documentation, images, and other assets. When a file mixes in-scope and unrelated changes, stage only the relevant hunks. Check `git diff --cached --name-status` against the intended file list and run `git diff --cached --check`.
+3. After committing, inspect `git show --name-status --oneline HEAD` and rerun `git status --short --branch --untracked-files=all`. Resolve any in-scope files or hunks still staged, modified, or untracked before pushing or reporting completion. Leave unrelated user changes in place and report them if they remain.
+4. For a pull request, compare `git diff --name-status <base>...HEAD` with the intended changes before pushing. After creating or updating the PR, use `gh pr diff <number> --name-only` to check the published file list and `gh pr view <number> --json url,baseRefName,headRefOid` to confirm the base and that the remote head matches `git rev-parse HEAD`. Report the PR link and any verification you could not complete.

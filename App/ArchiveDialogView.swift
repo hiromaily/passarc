@@ -74,6 +74,14 @@ struct ArchiveDialogView: View {
               onReturn: { model.submit() },
               keepFocus: { model.state.isMismatchShown })
           }
+          GridRow {
+            Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+            HStack {
+              Button("Generate Password") { model.generatePassword() }
+              Button("Copy Password") { model.copyPassword() }
+            }
+            .fixedSize()
+          }
           if let message = model.state.passwordMessage {
             GridRow {
               Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])

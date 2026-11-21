@@ -16,6 +16,8 @@ password, and PassArc creates the archive next to the original.
 
 2. In the **Archive** dialog, choose a format and compression level. Leave **Protect with a password** checked and enter the password in both fields, or clear it to create an unprotected archive. Click **Compress** to save the archive next to the folder.
 
+   Use **Generate Password** to fill both fields with a random password. Use **Copy Password** before clicking **Compress** to copy the matching password to the clipboard for sharing through a separate channel.
+
    <img src="docs/images/archive-dialog.png" alt="PassArc Archive dialog with 7z, Normal compression, and password protection selected" width="378">
 
 ## Formats

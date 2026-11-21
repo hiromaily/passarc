@@ -39,6 +39,16 @@ Bare Swift filenames in the table are in `Core/Sources/PassArcCore/`. Run the fu
 
 See [README.md](README.md) for setup and verification steps and [development notes](docs/development-notes.md) for macOS and 7-Zip implementation details.
 
+## Skill validation
+
+When adding or editing a repository skill, run the `skill-creator` validator with `uv`. The command isolates PyYAML from the system Python. Pass the skill directory as the last argument.
+
+```sh
+uv run --no-project --with PyYAML==6.0.3 python \
+  "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" \
+  .agents/skills/review-work
+```
+
 ## Commit and pull request checks
 
 When asked to commit changes or open a pull request, verify that every intended file reaches the commit and the pull request.
@@ -47,3 +57,4 @@ When asked to commit changes or open a pull request, verify that every intended 
 2. Before committing, run the same status command and review both `git diff` and `git diff --cached`. Explicitly stage every in-scope file, including new documentation, images, and other assets. When a file mixes in-scope and unrelated changes, stage only the relevant hunks. Check `git diff --cached --name-status` against the intended file list and run `git diff --cached --check`.
 3. After committing, inspect `git show --name-status --oneline HEAD` and rerun `git status --short --branch --untracked-files=all`. Resolve any in-scope files or hunks still staged, modified, or untracked before pushing or reporting completion. Leave unrelated user changes in place and report them if they remain.
 4. For a pull request, compare `git diff --name-status <base>...HEAD` with the intended changes before pushing. After creating or updating the PR, use `gh pr diff <number> --name-only` to check the published file list and `gh pr view <number> --json url,baseRefName,headRefOid` to confirm the base and that the remote head matches `git rev-parse HEAD`. Report the PR link and any verification you could not complete.
+5. After follow-up work on a submitted change, check where the new files and hunks ended up. If the follow-up includes publication, check the existing PR state before pushing. Use a new PR based on the latest target branch if the earlier PR has already merged. Report any follow-up changes that are still local.

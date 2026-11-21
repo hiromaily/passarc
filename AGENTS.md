@@ -17,6 +17,8 @@ PassArc is a macOS app that creates archives next to the files or folders select
 
 ## Build and verification
 
+Create temporary working directories for development and testing under `/tmp` with `mktemp -d /tmp/passarc.XXXXXX`. Remove every temporary directory created for the task when the work ends, including after failed or cancelled tests. For scripts, register an `EXIT` trap immediately after creating the directory so early exits also clean it up.
+
 Run these commands from the repository root.
 
 Start with the files and focused tests for the behavior you're changing.

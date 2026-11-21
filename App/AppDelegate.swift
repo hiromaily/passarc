@@ -1,5 +1,4 @@
 import AppKit
-import FinderSync
 import PassArcCore
 
 @main
@@ -8,6 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var windows: Set<ArchiveWindowController> = []
   private var extractionWindows: Set<ExtractionWindowController> = []
   private let notifier = Notifier()
+  private lazy var launchWindow = LaunchWindowController { [weak self] items in
+    self?.openArchiveWindow(items: items)
+  }
 
   static func main() {
     signal(SIGPIPE, SIG_IGN)  // a closed pipe to a child process must not kill the app
@@ -23,26 +25,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
-    showFinderSetupIfNeeded()
+    launchWindow.show()
+    return true
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-    if !hasVisibleWindows { _ = showFinderSetupIfNeeded() }
+    if !hasVisibleWindows { launchWindow.show() }
     return false
-  }
-
-  private func showFinderSetupIfNeeded() -> Bool {
-    guard !FIFinderSyncController.isExtensionEnabled else { return false }
-    let alert = NSAlert()
-    alert.messageText = "Enable PassArc in Finder"
-    alert.informativeText = "Open System Settings and turn on PassArcFinder. Then right-click a file or folder and choose Archive with Password."
-    alert.addButton(withTitle: "Open System Settings")
-    alert.addButton(withTitle: "Later")
-    NSApp.activate()
-    if alert.runModal() == .alertFirstButtonReturn {
-      FIFinderSyncController.showExtensionManagementInterface()
-    }
-    return true
   }
 
   /// Opens one window per Finder request.
@@ -58,12 +47,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         continue
       }
       guard let items = ArchiveURL.parse(url) else { continue }
-      let controller = ArchiveWindowController(items: items, notifier: notifier)
-      controller.onClose = { [weak self, weak controller] in
-        if let controller { self?.windows.remove(controller) }
-      }
-      windows.insert(controller)
-      controller.show()
+      openArchiveWindow(items: items)
     }
+  }
+
+  private func openArchiveWindow(items: [URL]) {
+    let controller = ArchiveWindowController(items: items, notifier: notifier)
+    controller.onClose = { [weak self, weak controller] in
+      if let controller { self?.windows.remove(controller) }
+    }
+    windows.insert(controller)
+    controller.show()
   }
 }

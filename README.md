@@ -18,6 +18,8 @@ password, and PassArc creates the archive next to the original.
 
    Use **Generate Password** to fill both fields with a random password. Use **Copy Password** before clicking **Compress** to copy the matching password to the clipboard for sharing through a separate channel.
 
+   When you select multiple folders, turn on **Create a separate archive for each folder** to save one archive next to each source. If you stop the operation or a folder fails, any archives already saved are kept.
+
    <img src="docs/images/archive-dialog.png" alt="PassArc Archive dialog with 7z, Normal compression, and password protection selected" width="378">
 
 ## Formats

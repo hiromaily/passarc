@@ -4,7 +4,7 @@ import os
 
 private let log = Logger(subsystem: "local.passarc.app", category: "notification")
 
-/// The completion notification. Clicking it reveals the file in Finder.
+/// The completion notification. Clicking it reveals the results in Finder.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
   private lazy var center = UNUserNotificationCenter.current()  // created lazily: it throws outside an app bundle
@@ -39,12 +39,27 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
   }
 
+  func postArchivesCreated(_ files: [URL]) {
+    guard let first = files.first else { return }
+    if files.count == 1 {
+      postCompleted(first)
+      return
+    }
+    let content = UNMutableNotificationContent()
+    content.title = "Created \(files.count) archives"
+    content.body = "Click to show the archives in Finder."
+    content.userInfo = ["paths": files.map(\.path)]
+    center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+  }
+
   nonisolated func userNotificationCenter(
     _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse
   ) async {
-    guard let path = response.notification.request.content.userInfo["path"] as? String else { return }
+    let info = response.notification.request.content.userInfo
+    let paths = info["paths"] as? [String] ?? (info["path"] as? String).map { [$0] } ?? []
+    guard !paths.isEmpty else { return }
     await MainActor.run {
-      NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: path)])
+      NSWorkspace.shared.activateFileViewerSelecting(paths.map { URL(filePath: $0) })
     }
   }
 

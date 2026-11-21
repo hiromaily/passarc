@@ -12,17 +12,25 @@ final class ArchiveDialogModel {
   }
 
   let items: [URL]
+  let canCompressSeparately: Bool
+  var compressSeparately = false
   var state: DialogState
   private(set) var phase: Phase = .editing
+  private(set) var currentFolder: String?
   var close: () -> Void = {}
   var finishEditing: () -> Bool = { true }
 
   private let notifier: Notifier
   private let settings = SettingsStore()
   private var job: ArchiveJob?
+  private var stopRequested = false
 
   init(items: [URL], notifier: Notifier) {
     self.items = items
+    canCompressSeparately = items.count > 1 && items.allSatisfy { item in
+      let values = try? item.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+      return values?.isDirectory == true && values?.isSymbolicLink == false
+    }
     self.notifier = notifier
     state = settings.load()
   }
@@ -56,40 +64,63 @@ final class ArchiveDialogModel {
   func submit() {
     guard state.canSubmit, phase == .editing else { return }
     settings.save(state)
-    let request = ArchiveRequest(
-      items: items, format: state.format, level: state.level,
-      password: state.usePassword ? state.password : nil)
-    // Clear the password from the model once the job has it
+    let separately = canCompressSeparately && compressSeparately
+    // Archive ancestors first so they don't include newly created archives of selected descendants.
+    let groups = separately
+      ? items.map { ($0, $0.resolvingSymlinksInPath().pathComponents.count) }
+        .sorted { $0.1 < $1.1 }.map { [$0.0] }
+      : [items]
+    let format = state.format
+    let level = state.level
+    let password = state.usePassword ? state.password : nil
     state.password = ""
     state.confirmation = ""
 
-    let job = ArchiveJob(request: request)
-    self.job = job
     phase = .running(.compressing(nil))
     Task {
+      var outputs: [URL] = []
       do {
-        let output = try await job.run(progress: { p in
-          Task { @MainActor [weak self] in
-            if case .running = self?.phase { self?.phase = .running(p) }
+        for (index, group) in groups.enumerated() {
+          if stopRequested { throw ArchiveError.cancelled }
+          if separately {
+            currentFolder = "Folder \(index + 1) of \(groups.count) · \(group[0].lastPathComponent)"
           }
-        })
-        self.job = nil
-        notifier.postCompleted(output)
+          let job = ArchiveJob(request: ArchiveRequest(
+            items: group, format: format, level: level, password: password))
+          self.job = job
+          phase = .running(.compressing(nil))
+          let output = try await job.run { progress in
+            Task { @MainActor [weak self] in
+              guard let self, self.job === job else { return }
+              self.phase = .running(progress)
+            }
+          }
+          outputs.append(output)
+        }
+        job = nil
+        notifier.postArchivesCreated(outputs)
         close()
       } catch ArchiveError.cancelled {
-        self.job = nil
+        job = nil
+        notifier.postArchivesCreated(outputs)
         close()
-      } catch let error as ArchiveError {
-        self.job = nil
-        phase = .failed(error.message)
       } catch {
-        self.job = nil
-        phase = .failed(error.localizedDescription)
+        job = nil
+        let detail = (error as? ArchiveError)?.message ?? error.localizedDescription
+        guard let currentFolder else {
+          phase = .failed(detail)
+          return
+        }
+        notifier.postArchivesCreated(outputs)
+        let saved = outputs.count == 1 ? "1 archive saved." : "\(outputs.count) archives saved."
+        phase = .failed("\(currentFolder)\n\(detail)\n\n\(saved)")
       }
     }
   }
 
   func cancelIfRunning() {
+    guard case .running = phase else { return }
+    stopRequested = true
     job?.cancel()
   }
 }

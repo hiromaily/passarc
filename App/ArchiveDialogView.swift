@@ -100,6 +100,9 @@ struct ArchiveDialogView: View {
           }
         }
       }
+      if model.canCompressSeparately {
+        Toggle("Create a separate archive for each folder", isOn: $model.compressSeparately)
+      }
       HStack {
         HelpLink { showHelp = true }
           .popover(isPresented: $showHelp, arrowEdge: .bottom) { ArchiveHelpView() }
@@ -121,6 +124,11 @@ struct ArchiveDialogView: View {
 
   private func running(_ phase: JobPhase) -> some View {
     VStack(alignment: .leading, spacing: 10) {
+      if let folder = model.currentFolder {
+        Text(folder)
+          .lineLimit(1)
+          .truncationMode(.middle)
+      }
       switch phase {
       case .compressing(let fraction?):
         Text("Compressing…")

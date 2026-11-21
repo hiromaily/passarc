@@ -95,6 +95,10 @@ manifest error and selected Swift and SDK versions. A successful app build does 
 - **Check the password through a different path from the one that set it.** Creating and verifying through the
   same pty would pass even if the password were garbled on the way. The tests reopen archives with
   `7zz t -p<password>` on the command line (fine in tests, never in the app).
+- **The password-in-arguments test needs process inspection.** If
+  `pty_createsEncrypted7zWithoutPasswordInArguments` reports empty process arguments, try
+  `/bin/ps -ww -o args= -p $$` in the same execution environment. If process inspection is denied,
+  rerun the test in an environment that lets it read its child process arguments.
 
 ## tar, zstd and files
 
@@ -106,8 +110,9 @@ manifest error and selected Swift and SDK versions. A successful app build does 
   pipe buffer. Test: `job_tarZstFailsCleanlyInReadOnlyDirectory`.
 - **`FileManager.enumerator` silently skips `._*` files**, and calling `skipDescendants()` on a file skips the rest
   of its parent folder. `FileInventory` walks the tree with `readdir` and `lstat`.
-- **Items must share a parent folder.** 7zz and tar run in the parent with bare names. Finder can hand over items
-  from different folders (search results, Recents), so `ArchiveJob` rejects those.
+- **Items in one archive must share a parent folder.** 7zz and tar run in the parent with bare names.
+  Finder can hand over items from different folders, for example through search results. Individual
+  folder compression submits one job per folder, so each job uses its own parent.
 - **Parallel jobs reserve their names.** Output and `.partial` names are reserved in a process-wide set, and the
   final rename picks a free name again if one appeared meanwhile.
 

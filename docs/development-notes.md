@@ -6,8 +6,28 @@ called.
 
 ## Building without Xcode
 
-Xcode could not be installed on this Mac's macOS (15.7), so `scripts/build.sh` builds everything with the Command
-Line Tools. The CLT SDK includes `FinderSync.framework`.
+`scripts/build.sh` uses the macOS SDK and `swiftc` through `xcrun`. The standalone Command Line Tools SDK includes
+`FinderSync.framework`.
+
+If the compiler fails before it reaches project code, check the selected developer directory, compiler, and SDK.
+
+```sh
+xcode-select -p
+xcrun --sdk macosx --find swiftc
+xcrun --sdk macosx --show-sdk-path
+```
+
+If the selected Xcode fails to start and standalone Command Line Tools are installed, use `DEVELOPER_DIR` for the
+individual command. If the default Clang module cache is unwritable, give the command a writable temporary cache.
+The following combination has built and signed both PassArc targets successfully.
+
+```sh
+DEVELOPER_DIR=/Library/Developer/CommandLineTools \
+  CLANG_MODULE_CACHE_PATH="$(mktemp -d)" scripts/build.sh
+```
+
+Run `swift test --package-path Core` separately. If SwiftPM fails while compiling `Package.swift`, record the
+manifest error and selected Swift and SDK versions. A successful app build does not exercise the package manifest.
 
 - **The extension's entry point is `NSExtensionMain`.** Link the appex with `-Xlinker -e -Xlinker _NSExtensionMain`
   and compile it (and any library it links) with `-application-extension`.

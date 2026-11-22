@@ -59,7 +59,7 @@ public struct FileInventory: Sendable, Equatable {
           try visit(path + "/" + name)
         }
       default:
-        break  // FIFOs, sockets and devices are not counted
+        break // FIFOs, sockets and devices are not counted
       }
     }
 

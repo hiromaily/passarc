@@ -23,7 +23,7 @@ import Testing
   @Test func check_rejectsNonASCII() {
     #expect(PasswordRules.check("ぱすわーど", confirmation: "ぱすわーど") == .nonASCII)
     #expect(PasswordRules.check("abc１", confirmation: "abc１") == .nonASCII)
-    #expect(PasswordRules.check("ぱ", confirmation: "x") == .nonASCII)  // checked before the match
+    #expect(PasswordRules.check("ぱ", confirmation: "x") == .nonASCII) // checked before the match
   }
 
   @Test func check_acceptsSpaceAndSymbols() {
@@ -79,10 +79,10 @@ import Testing
 
   @Test func message_mismatchWaitsUntilConfirmationFieldIsLeft() {
     var s = state(password: "abc", confirmation: "a")
-    #expect(s.passwordMessage == nil)  // not shown while typing
+    #expect(s.passwordMessage == nil) // not shown while typing
     s.didLeaveConfirmationField()
     #expect(s.passwordMessage == "The passwords don’t match.")
-    s.confirmation = "abc"  // after leaving, fixing it clears the message right away
+    s.confirmation = "abc" // after leaving, fixing it clears the message right away
     #expect(s.passwordMessage == nil)
   }
 

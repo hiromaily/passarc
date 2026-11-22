@@ -41,8 +41,8 @@ struct ArchiveDialogView: View {
                 title: f.displayName, isOn: model.state.format == f,
                 isEnabled: model.state.isFormatEnabled(f)
               ) { model.state.format = f }
-              // SwiftUI overrides NSButton.isEnabled, so disable it on the SwiftUI side too
-              .disabled(!model.state.isFormatEnabled(f))
+                // SwiftUI overrides NSButton.isEnabled, so disable it on the SwiftUI side too
+                .disabled(!model.state.isFormatEnabled(f))
             }
           }
           .fixedSize()
@@ -67,7 +67,7 @@ struct ArchiveDialogView: View {
           .pickerStyle(.radioGroup)
           .horizontalRadioGroupLayout()
           .labelsHidden()
-          .fixedSize()  // shrinking it truncates "Normal" and "Maximum"
+          .fixedSize() // shrinking it truncates "Normal" and "Maximum"
         }
         GridRow {
           Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])

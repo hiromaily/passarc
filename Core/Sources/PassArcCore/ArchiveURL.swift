@@ -26,14 +26,14 @@ public enum ArchiveURL {
 
   public static func parseExtraction(_ url: URL) -> URL? {
     guard let items = parse(url, host: "extract"), items.count == 1,
-      ExtractionJob.format(of: items[0]) != nil
+          ExtractionJob.format(of: items[0]) != nil
     else { return nil }
     return items[0]
   }
 
   private static func parse(_ url: URL, host: String) -> [URL]? {
     guard url.scheme == "passarc", url.host == host,
-      let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+          let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
     else { return nil }
     let paths = items.filter { $0.name == "path" }.compactMap(\.value)
     guard !paths.isEmpty, paths.allSatisfy({ $0.hasPrefix("/") }) else { return nil }

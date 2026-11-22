@@ -1,0 +1,5 @@
+--swiftversion 6.0
+--indent 2
+--linebreaks lf
+--exclude Core/.build
+--rules consecutiveBlankLines,consecutiveSpaces,indent,linebreakAtEndOfFile,linebreaks,spaceAroundBraces,spaceAroundBrackets,spaceAroundComments,spaceAroundGenerics,spaceAroundOperators,spaceAroundParens,spaceInsideBraces,spaceInsideBrackets,spaceInsideComments,spaceInsideGenerics,spaceInsideParens,trailingSpace

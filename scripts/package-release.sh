@@ -36,7 +36,7 @@ if [[ -n "${PASSARC_NOTARY_KEY:-}" ]]; then
 fi
 SHA256="$(/usr/bin/shasum -a 256 "$WORK/PassArc-arm64.zip")"
 sed -e "s/@VERSION@/$VERSION/" -e "s/@SHA256@/${SHA256%% *}/" \
-  "$ROOT/homebrew/passarc.rb.in" > "$WORK/passarc.rb"
+  "$ROOT/homebrew/passarc.rb.in" >"$WORK/passarc.rb"
 ruby -c "$WORK/passarc.rb"
 mv -f "$WORK/PassArc-arm64.zip" "$ARCHIVE"
 mv -f "$WORK/passarc.rb" "$OUT/passarc.rb"

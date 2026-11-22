@@ -13,13 +13,13 @@ public enum CommandBuilder {
     precondition(format.payload == .sevenZip, "This format is not created with 7zz")
     var args = [
       "a", format == .sevenZip ? "-t7z" : "-tzip", "-mx=\(mx(level))", "-mmt=on", "-snl", "-bsp1",
-      "-spd",  // treat * and ? in names literally
+      "-spd", // treat * and ? in names literally
     ]
     // -spd also disables wildcards in excludes, so pass literal names in a list file
     args += ["-scsUTF-8", "-xr@\(excludeList.path)"]
     if hasPassword {
       args += format == .sevenZip ? ["-mhe=on"] : ["-mem=AES256"]
-      args.append("-p")  // no value: 7zz prompts on the terminal
+      args.append("-p") // no value: 7zz prompts on the terminal
     }
     return args + ["--", archive.path] + itemNames
   }

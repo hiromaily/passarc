@@ -1,0 +1,21 @@
+[tools]
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+shfmt = "3.14.1"
+swiftformat = "0.64.7"
+
+[tasks.lint]
+description = "Check Swift, shell scripts, and GitHub Actions workflows"
+run = [
+  "swiftformat App Core Extension scripts/snapshot --lint --cache ignore",
+  "shfmt -i 2 -d scripts",
+  "shellcheck scripts/*.sh",
+  "actionlint",
+]
+
+[tasks.format]
+description = "Format Swift and shell scripts"
+run = [
+  "swiftformat App Core Extension scripts/snapshot --cache ignore",
+  "shfmt -i 2 -w scripts",
+]

@@ -115,7 +115,7 @@ import Testing
     let big = dir.appending(path: "big")
     try FileManager.default.createDirectory(at: big, withIntermediateDirectories: true)
     var bytes = [UInt8](repeating: 0, count: 50 << 20)
-    for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255) }
+    for i in bytes.indices { bytes[i] = UInt8.random(in: 0 ... 255) }
     try Data(bytes).write(to: big.appending(path: "r.bin"))
 
     let job = ArchiveJob(
@@ -182,7 +182,7 @@ import Testing
       Issue.record("should fail")
     } catch let error as ArchiveError {
       guard case .failed = error else { Issue.record("expected .failed: \(error)"); return }
-      #expect(!error.message.contains("hunter2"))  // job_errorNeverContainsPassword
+      #expect(!error.message.contains("hunter2")) // job_errorNeverContainsPassword
       #expect(!error.message.isEmpty)
     }
     #expect(try leftovers(in: dir).isEmpty)

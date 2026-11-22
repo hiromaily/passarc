@@ -29,14 +29,14 @@ final class FinderSync: FIFinderSync {
 
   @objc func extract(_ sender: AnyObject?) {
     guard let items = FIFinderSyncController.default().selectedItemURLs(),
-      let archive = archiveToExtract(items)
+          let archive = archiveToExtract(items)
     else { return }
     NSWorkspace.shared.open(ArchiveURL.makeExtraction(item: archive))
   }
 
   private func archiveToExtract(_ items: [URL]) -> URL? {
     guard items.count == 1, let item = items.first, ExtractionJob.format(of: item) != nil,
-      (try? item.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+          (try? item.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
     else { return nil }
     return item
   }

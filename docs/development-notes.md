@@ -4,6 +4,34 @@ Things we learned while building PassArc (2026-11-08) that are not obvious from 
 happened, why, and what the code does about it. Read this before changing the build, the dialog, or how 7-Zip is
 called.
 
+## Lint and formatting
+
+Install [mise](https://mise.jdx.dev/getting-started.html) with `brew install mise`, then run these commands from the repository root.
+
+```sh
+mise trust
+mise install
+mise run format
+mise run lint
+```
+
+`mise.toml` pins the tool versions and defines the commands used locally and in CI. The lint task checks Swift formatting with SwiftFormat, Bash formatting with shfmt, shell scripts with ShellCheck, and GitHub Actions workflows with actionlint. actionlint also uses ShellCheck for inline shell steps.
+
+Swift formatting uses two spaces and LF line endings. The rules in `.swiftformat` cover indentation, whitespace, and spacing. Shell scripts use two spaces. Edit workflow YAML directly and use `mise run lint` to validate it. When adding or upgrading a workflow action, regenerate `.github/workflows/actions.lock` with `gh actions-lock`.
+
+## CI triggers
+
+GitHub Actions filters pull requests and pushes to `main` by changed paths before starting a runner.
+
+| Workflow | Changes that trigger it |
+| --- | --- |
+| Core tests | `Core/` or the Core test workflow |
+| Lint | `App/`, `Core/`, `Extension/`, `scripts/`, formatter or mise configuration, or workflow YAML |
+| Verify Actions lockfile | Workflow YAML or `.github/workflows/actions.lock` |
+
+CI cancels older runs of the same workflow for the same ref. Lint and lockfile verification run on Linux.
+Core unit and integration tests run together on macOS and install only the archive tools missing from the runner.
+
 ## Building without Xcode
 
 `scripts/build.sh` uses the macOS SDK and `swiftc` through `xcrun`. The standalone Command Line Tools SDK includes
@@ -212,8 +240,8 @@ backend separately from an outer encryption step such as age. Keep the compatibi
 For a new format, exercise creation, verification, and extraction with the real tools. Check an incorrect
 passphrase, cancellation cleanup, and preservation of symbolic links where applicable. To test with a
 standalone age executable, run `PASSARC_TEST_AGE=/path/to/age swift test --package-path Core --filter ExtractionJobTests`.
-The [Core tests workflow](../.github/workflows/core-tests.yml) installs all three archive tools on macOS
-and sets `PASSARC_TEST_AGE` so the encrypted tar.zst round-trip runs on every pull request and push to main.
+The [Core tests workflow](../.github/workflows/core-tests.yml) sets `PASSARC_TEST_AGE` so the
+encrypted tar.zst round-trip runs in CI alongside the other Core tests.
 Run the full Core suite and build both the app and Finder extension before checking the Finder menu.
 
 ## tar, zstd and files

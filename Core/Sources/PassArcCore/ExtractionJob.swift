@@ -42,7 +42,7 @@ public struct ExtractionJob: Sendable {
 
   public func run() async throws -> URL {
     guard let format = Self.format(of: archive),
-      try archive.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true
+          try archive.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true
     else { throw ExtractionError.unsupportedArchive }
     let tool = format.payload.tool
     guard let executable = locate(tool) else { throw ExtractionError.toolMissing(tool) }
@@ -54,7 +54,7 @@ public struct ExtractionJob: Sendable {
       guard let executable = locate(.age) else { throw ExtractionError.toolMissing(.age) }
       guard let password, !password.isEmpty else { throw ExtractionError.passwordRequired }
       guard password.utf8.count <= AgeCommand.maximumPassphraseBytes,
-        password.utf8.allSatisfy({ $0 >= 0x20 && $0 != 0x7F })
+            password.utf8.allSatisfy({ $0 >= 0x20 && $0 != 0x7F })
       else { throw ExtractionError.invalidPassphrase }
       age = (executable, password)
     }
@@ -91,9 +91,9 @@ public struct ExtractionJob: Sendable {
         in: payload, password: password ?? "")
       // Unencrypted archives never ask. An empty reply lets 7zz exit without waiting for input.
       if result.exitCode != 0,
-        result.output.split(separator: "\n").contains(where: {
-          $0.trimmingCharacters(in: .whitespaces) == "Enter password:"
-        }) {
+         result.output.split(separator: "\n").contains(where: {
+           $0.trimmingCharacters(in: .whitespaces) == "Enter password:"
+         }) {
         throw password == nil ? ExtractionError.passwordRequired : ExtractionError.incorrectPassword
       }
       try check(result)

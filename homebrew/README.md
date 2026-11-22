@@ -50,8 +50,11 @@ For a manual tap update, download `passarc.rb` from the release, commit it to
 
 ## Verify an installed release
 
-On an Apple Silicon Mac, install with `brew install --cask hiromaily/tap/passarc`.
-Open PassArc once, follow the prompt to enable PassArcFinder, then use **Archive with Password** in Finder
-to archive a test file. Check that the archive opens with the password. Uninstall with
-`brew uninstall --cask hiromaily/tap/passarc` and confirm the app and its Finder menu
-are removed.
+Run these checks in an interactive Apple Silicon macOS session. Use a previous Homebrew release with PassArcFinder already enabled to verify an upgrade.
+
+1. Before the upgrade, right-click a test folder in Finder and confirm **Archive with Password** appears. Record the installed version and the extension version and path with `brew list --cask --versions passarc` and `pluginkit -m -A -D -v -i local.passarc.app.finder`.
+2. Run `brew upgrade --cask hiromaily/tap/passarc`. Confirm the installed version and verify the app bundle with `codesign --verify --deep --strict /Applications/PassArc.app` for the default app directory.
+3. Before opening PassArc or changing extension settings, right-click the folder again. Choose **Archive with Password** and confirm that the Archive dialog opens. Check that the enabled Finder extension points to the upgraded bundle.
+4. If the menu is missing or the wrong version is registered, record the output from step 1 before making changes. Follow [Recover a missing Finder menu](../docs/development-notes.md#recover-a-missing-finder-menu) and repeat the Finder check. Record the initial failure and any recovery required. Report any check that could not be run.
+
+For a clean install, run `brew install --cask hiromaily/tap/passarc`, open PassArc once, and follow the prompt to enable PassArcFinder. Use **Archive with Password** to archive a test folder and check that the archive opens with the password. Use a separate test environment if you also need to verify that uninstall removes the app and its Finder menu.

@@ -111,6 +111,7 @@ final class ArchiveDialogModel {
         job = nil
         notifier.postArchivesCreated(outputs)
         phase = .completed(outputs)
+        notifier.playCompletionSound()
       } catch ArchiveError.cancelled {
         job = nil
         notifier.postArchivesCreated(outputs)

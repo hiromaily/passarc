@@ -8,6 +8,11 @@ private let log = Logger(subsystem: "local.passarc.app", category: "notification
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
   private lazy var center = UNUserNotificationCenter.current()  // created lazily: it throws outside an app bundle
+  private lazy var completionSound = NSSound(named: "Glass")
+
+  func playCompletionSound() {
+    completionSound?.play()
+  }
 
   func start() {
     center.delegate = self

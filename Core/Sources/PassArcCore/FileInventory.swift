@@ -15,6 +15,17 @@ public struct FileInventory: Sendable, Equatable {
     name == ".DS_Store" || name.hasPrefix("._")
   }
 
+  public static func immediateSubfolders(of folder: URL) throws -> [URL] {
+    let keys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey]
+    let children = try FileManager.default.contentsOfDirectory(
+      at: folder, includingPropertiesForKeys: Array(keys))
+    return try children.filter { child in
+      guard !isExcluded(child.lastPathComponent) else { return false }
+      let values = try child.resourceValues(forKeys: keys)
+      return values.isDirectory == true && values.isSymbolicLink == false
+    }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+  }
+
   public static func scan(items: [URL]) throws -> FileInventory {
     var count = 0
     var bytes: Int64 = 0

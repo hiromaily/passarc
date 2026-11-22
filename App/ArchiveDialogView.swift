@@ -108,7 +108,11 @@ struct ArchiveDialogView: View {
         }
       }
       if model.canCompressSeparately {
-        Toggle("Create a separate archive for each folder", isOn: $model.compressSeparately)
+        Toggle(
+          model.items.count == 1
+            ? "Create a separate archive for each immediate subfolder"
+            : "Create a separate archive for each folder",
+          isOn: $model.compressSeparately)
       }
       HStack {
         HelpLink { showHelp = true }

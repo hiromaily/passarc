@@ -24,6 +24,36 @@ import Testing
     ).run(onOutput: { _ in })
   }
 
+  @Test func job_archivesImmediateSubfoldersIndividually() async throws {
+    let (dir, projects) = try makeProjects()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    try TestSupport.write("nested", to: projects.appending(path: "sub/deeper/nested.txt"))
+    try TestSupport.write("second", to: projects.appending(path: ".hidden/second.txt"))
+    try TestSupport.write("metadata", to: projects.appending(path: "._metadata/ignored.txt"))
+    try FileManager.default.createSymbolicLink(
+      at: projects.appending(path: "alias"), withDestinationURL: projects.appending(path: "sub"))
+
+    let subfolders = try FileInventory.immediateSubfolders(of: projects)
+    #expect(subfolders.map(\.lastPathComponent) == [".hidden", "sub"])
+    var archives: [URL] = []
+    for folder in subfolders {
+      let archive = try await ArchiveJob(
+        request: ArchiveRequest(items: [folder], format: .sevenZip, level: .fast, password: nil)
+      ).run(progress: { _ in })
+      archives.append(archive)
+    }
+    #expect(archives.map(\.lastPathComponent) == [".hidden.7z", "sub.7z"])
+    #expect(archives.allSatisfy {
+      $0.deletingLastPathComponent().resolvingSymlinksInPath().path
+        == projects.resolvingSymlinksInPath().path
+    })
+    let archive = try #require(archives.last)
+    let (status, listing) = try TestSupport.run(TestSupport.sevenZip, ["l", "-slt", "--", archive.path])
+    #expect(status == 0)
+    #expect(listing.contains("Path = sub/deeper/nested.txt"))
+    #expect(!listing.contains("Path = a.txt"))
+  }
+
   @Test(arguments: [ArchiveFormat.sevenZip, .zip])
   func job_createsVerifiedEncryptedArchive(format: ArchiveFormat) async throws {
     let (dir, projects) = try makeProjects()

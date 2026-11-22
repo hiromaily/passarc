@@ -6,14 +6,16 @@ public enum ExtractionError: LocalizedError, Equatable, Sendable {
   case toolMissing(Tool)
   case passwordRequired
   case incorrectPassword
+  case invalidPassphrase
   case failed(String)
 
   public var errorDescription: String? {
     switch self {
-    case .unsupportedArchive: "Choose a 7z, ZIP, or tar.zst archive."
+    case .unsupportedArchive: "Choose a 7z, ZIP, tar.zst, or tar.zst.age archive."
     case .toolMissing(let tool): ArchiveError.toolMissing(tool).message
     case .passwordRequired: "Enter the archive password."
     case .incorrectPassword: "Incorrect password. Try again."
+    case .invalidPassphrase: "Enter a passphrase of at most 1023 UTF-8 bytes without control characters."
     case .failed(let detail): "Extraction failed.\n\(detail)"
     }
   }
@@ -22,10 +24,15 @@ public enum ExtractionError: LocalizedError, Equatable, Sendable {
 public struct ExtractionJob: Sendable {
   private let archive: URL
   private let password: String?
+  private let locate: @Sendable (Tool) -> URL?
 
-  public init(archive: URL, password: String? = nil) {
+  public init(
+    archive: URL, password: String? = nil,
+    locate: @escaping @Sendable (Tool) -> URL? = { ToolLocator.locate($0) }
+  ) {
     self.archive = archive
     self.password = password
+    self.locate = locate
   }
 
   public static func format(of archive: URL) -> ArchiveFormat? {
@@ -37,8 +44,20 @@ public struct ExtractionJob: Sendable {
     guard let format = Self.format(of: archive),
       try archive.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true
     else { throw ExtractionError.unsupportedArchive }
-    let tool: Tool = format == .tarZst ? .zstd : .sevenZip
-    guard let executable = ToolLocator.locate(tool) else { throw ExtractionError.toolMissing(tool) }
+    let tool = format.payload.tool
+    guard let executable = locate(tool) else { throw ExtractionError.toolMissing(tool) }
+    let age: (executable: URL, password: String)?
+    switch format.encryption {
+    case .none, .sevenZipPassword:
+      age = nil
+    case .age:
+      guard let executable = locate(.age) else { throw ExtractionError.toolMissing(.age) }
+      guard let password, !password.isEmpty else { throw ExtractionError.passwordRequired }
+      guard password.utf8.count <= AgeCommand.maximumPassphraseBytes,
+        password.utf8.allSatisfy({ $0 >= 0x20 && $0 != 0x7F })
+      else { throw ExtractionError.invalidPassphrase }
+      age = (executable, password)
+    }
 
     try Task.checkCancellation()
     let fm = FileManager.default
@@ -49,11 +68,24 @@ public struct ExtractionJob: Sendable {
     let payload = staging.appending(path: "contents", directoryHint: .isDirectory)
     try fm.createDirectory(at: payload, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
 
-    if format == .tarZst {
+    var compressed = archive
+    if let age {
+      compressed = staging.appending(path: "archive.tar.zst")
+      let result = try await run(AgeCommand.runner(
+        executable: age.executable, decrypt: true, input: archive,
+        output: compressed, password: age.password))
+      if result.exitCode != 0 {
+        if result.output.contains("incorrect passphrase") { throw ExtractionError.incorrectPassword }
+        throw ExtractionError.failed("age could not decrypt this archive with a passphrase.")
+      }
+    }
+
+    switch format.payload {
+    case .tarZst:
       let tar = staging.appending(path: "archive.tar")
-      try check(await run(executable, ["-d", "-q", "-o", tar.path, "--", archive.path], in: staging))
+      try check(await run(executable, ["-d", "-q", "-o", tar.path, "--", compressed.path], in: staging))
       try check(await run(URL(filePath: "/usr/bin/tar"), ["-x", "-f", tar.path], in: payload))
-    } else {
+    case .sevenZip:
       let result = try await run(
         executable, ["x", "-y", "-bsp0", "-spd", "-t\(format.fileExtension)", "--", archive.path],
         in: payload, password: password ?? "")
@@ -86,9 +118,13 @@ public struct ExtractionJob: Sendable {
   private func run(
     _ executable: URL, _ arguments: [String], in directory: URL, password: String? = nil
   ) async throws -> PTYResult {
-    try Task.checkCancellation()
-    let runner = PTYRunner(
+    try await run(PTYRunner(
       executable: executable, arguments: arguments, currentDirectory: directory, password: password)
+    )
+  }
+
+  private func run(_ runner: PTYRunner) async throws -> PTYResult {
+    try Task.checkCancellation()
     let result = try await withTaskCancellationHandler {
       try await runner.run(onOutput: { _ in })
     } onCancel: {

@@ -10,7 +10,7 @@ public enum CommandBuilder {
     format: ArchiveFormat, level: CompressionLevel, hasPassword: Bool, archive: URL,
     excludeList: URL, itemNames: [String]
   ) -> [String] {
-    precondition(format != .tarZst, "tar.zst is not created with 7zz")
+    precondition(format.payload == .sevenZip, "This format is not created with 7zz")
     var args = [
       "a", format == .sevenZip ? "-t7z" : "-tzip", "-mx=\(mx(level))", "-mmt=on", "-snl", "-bsp1",
       "-spd",  // treat * and ? in names literally

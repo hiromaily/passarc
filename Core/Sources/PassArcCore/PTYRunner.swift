@@ -19,18 +19,21 @@ public final class PTYRunner: @unchecked Sendable {
   private let currentDirectory: URL
   private let environment: [String: String]?
   private let password: String?
+  private let prompt: @Sendable (String) -> Bool
   private let process = Process()
   private let stopped = Mutex(false)
 
   public init(
     executable: URL, arguments: [String], currentDirectory: URL,
-    environment: [String: String]? = nil, password: String?
+    environment: [String: String]? = nil, password: String?,
+    prompt: (@Sendable (String) -> Bool)? = nil
   ) {
     self.executable = executable
     self.arguments = arguments
     self.currentDirectory = currentDirectory
     self.environment = environment
     self.password = password
+    self.prompt = prompt ?? Self.isPasswordPrompt
   }
 
   public var processIdentifier: Int32 { process.processIdentifier }
@@ -42,7 +45,7 @@ public final class PTYRunner: @unchecked Sendable {
     }
   }
 
-  /// Writes password + "\n" each time the output shows a prompt containing "password" (any case)
+  /// Writes the password followed by a newline when the configured prompt appears.
   public func run(onOutput: @escaping @Sendable (String) -> Void) async throws -> PTYResult {
     var master: Int32 = -1
     var slave: Int32 = -1
@@ -87,6 +90,7 @@ public final class PTYRunner: @unchecked Sendable {
     let masterFD = master
     let process = self.process
     let password = self.password
+    let prompt = self.prompt
     return await withCheckedContinuation { continuation in
       let thread = Thread {
         var all = Data()
@@ -102,7 +106,7 @@ public final class PTYRunner: @unchecked Sendable {
               .replacingOccurrences(of: "\r", with: "\n")
             onOutput(text)
             pending += text
-            if let password, Self.isPasswordPrompt(pending) {
+            if let password, prompt(pending) {
               let line = Array((password + "\n").utf8)
               _ = line.withUnsafeBufferPointer { write(masterFD, $0.baseAddress, $0.count) }
               pending = ""

@@ -4,6 +4,7 @@ Make it easier to create a password-protected archive from Finder, share it, and
 
 ## Implemented
 
+- **Simplify archive protection and age recipient parsing.** Each creation request has one protection mode. Core validates format compatibility and shares recipient parsing with the dialog while preserving original line numbers for errors. This reduces the files and branches contributors and AI coding tools need to trace when changing archive protection.
 - **Create and extract public-key-encrypted tar.zst.age archives.** Paste recipient age or SSH public keys or import a recipient file when creating an archive. Choose the matching private key file when extracting it. PassArc checks the compressed data and saves it after age successfully encrypts it to the specified recipients. [age format specification](https://age-encryption.org/v1)
 
 - **Generate and copy passwords.** Generate Password fills both password fields with a random 24-character password. Copy Password copies a valid, matching password to the clipboard for sharing through a separate channel. Passwords stay out of saved settings, command-line arguments, and logs.
@@ -25,6 +26,12 @@ Make it easier to create a password-protected archive from Finder, share it, and
 ## Archive processing improvements to evaluate
 
 - **Review shared encryption code when adding another method.** Compare how the new method and age locate tools, accept passphrases or keys, and report errors during creation, verification, and extraction. Consolidate the parts that follow the same workflow.
+
+## Planned refactoring
+
+- **Share exclusive output finalization.** Reuse the rename and collision retry logic for archive creation and extraction. Preserve creation's name reservations and each job's cancellation and error handling.
+
+Defer sharing the tar and Zstandard pipelines because creation reports byte progress and extraction must validate the remaining Zstandard stream after tar finishes.
 
 ## Encrypted archive formats to evaluate
 

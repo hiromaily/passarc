@@ -48,21 +48,27 @@ public enum CompressionLevel: String, CaseIterable, Sendable, Codable {
   case fast, normal, maximum
 }
 
+public enum ArchiveProtection: Sendable {
+  case none
+  case password(String)
+  case ageRecipients(AgeRecipients)
+
+  var password: String? {
+    if case .password(let password) = self { return password }
+    return nil
+  }
+}
+
 public struct ArchiveRequest: Sendable {
   public var items: [URL]
   public var format: ArchiveFormat
   public var level: CompressionLevel
-  public var password: String?
-  public var ageRecipients: [String]
+  public var protection: ArchiveProtection
 
-  public init(
-    items: [URL], format: ArchiveFormat, level: CompressionLevel, password: String?,
-    ageRecipients: [String] = []
-  ) {
+  public init(items: [URL], format: ArchiveFormat, level: CompressionLevel, protection: ArchiveProtection = .none) {
     self.items = items
     self.format = format
     self.level = level
-    self.password = password
-    self.ageRecipients = ageRecipients
+    self.protection = protection
   }
 }

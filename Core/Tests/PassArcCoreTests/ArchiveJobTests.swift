@@ -38,7 +38,7 @@ import Testing
     var archives: [URL] = []
     for folder in subfolders {
       let archive = try await ArchiveJob(
-        request: ArchiveRequest(items: [folder], format: .sevenZip, level: .fast, password: nil)
+        request: ArchiveRequest(items: [folder], format: .sevenZip, level: .fast)
       ).run(progress: { _ in })
       archives.append(archive)
     }
@@ -58,7 +58,7 @@ import Testing
   func job_createsVerifiedEncryptedArchive(format: ArchiveFormat) async throws {
     let (dir, projects) = try makeProjects()
     let job = ArchiveJob(
-      request: ArchiveRequest(items: [projects], format: format, level: .normal, password: "pw"))
+      request: ArchiveRequest(items: [projects], format: format, level: .normal, protection: .password("pw")))
     let out = try await job.run(progress: { _ in })
 
     #expect(out.lastPathComponent == "projects.\(format.fileExtension)")
@@ -73,7 +73,7 @@ import Testing
   @Test func job_zipUsesAES256() async throws {
     let (_, projects) = try makeProjects()
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [projects], format: .zip, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [projects], format: .zip, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
     let (_, listing) = try TestSupport.run(TestSupport.sevenZip, ["l", "-slt", "--", out.path])
     #expect(listing.contains("Method = AES-256"), "\(listing)")
@@ -82,7 +82,7 @@ import Testing
   @Test func job_createsTarZst() async throws {
     let (dir, projects) = try makeProjects()
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [projects], format: .tarZst, level: .normal, password: nil)
+      request: ArchiveRequest(items: [projects], format: .tarZst, level: .normal)
     ).run(progress: { _ in })
     #expect(out.lastPathComponent == "projects.tar.zst")
 
@@ -103,7 +103,7 @@ import Testing
     _ = try await ArchiveJob(
       request: ArchiveRequest(
         items: [projects], format: format, level: .fast,
-        password: format.supportsPassword ? "pw" : nil)
+        protection: format.supportsPassword ? .password("pw") : .none)
     ).run(progress: { p in phases.withLock { $0.append(p) } })
     #expect(phases.withLock { $0 }.contains(.verifying))
     #expect(phases.withLock { $0 }.last == .verifying)
@@ -121,7 +121,7 @@ import Testing
     let job = ArchiveJob(
       request: ArchiveRequest(
         items: [big], format: format, level: .maximum,
-        password: format.supportsPassword ? "pw" : nil))
+        protection: format.supportsPassword ? .password("pw") : .none))
     await #expect(throws: ArchiveError.cancelled) {
       try await job.run(progress: { p in if case .compressing = p { job.cancel() } })
     }
@@ -145,7 +145,7 @@ import Testing
       to: age)
     try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: age.path)
     let job = ArchiveJob(
-      request: ArchiveRequest(items: [projects], format: .tarZstAge, level: .fast, password: "pw"),
+      request: ArchiveRequest(items: [projects], format: .tarZstAge, level: .fast, protection: .password("pw")),
       locate: { $0 == .age ? age : ToolLocator.locate($0) })
 
     let running = Task { try await job.run(progress: { _ in }) }
@@ -177,7 +177,7 @@ import Testing
 
     do {
       _ = try await ArchiveJob(
-        request: ArchiveRequest(items: [projects], format: .sevenZip, level: .fast, password: "hunter2")
+        request: ArchiveRequest(items: [projects], format: .sevenZip, level: .fast, protection: .password("hunter2"))
       ).run(progress: { _ in })
       Issue.record("should fail")
     } catch let error as ArchiveError {
@@ -193,7 +193,7 @@ import Testing
     let empty = dir.appending(path: "empty")
     try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [empty], format: .sevenZip, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [empty], format: .sevenZip, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
     #expect(out.lastPathComponent == "empty.7z")
   }
@@ -206,7 +206,7 @@ import Testing
     try TestSupport.write("j", to: jp.appending(path: "q.txt"))
 
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [dash, jp], format: .sevenZip, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [dash, jp], format: .sevenZip, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
     #expect(out.lastPathComponent == "Archive.7z")
     let listing = try await sevenZip(["l", "--", out.path], cwd: dir, password: "pw")
@@ -219,7 +219,7 @@ import Testing
     try TestSupport.write("x", to: projects.appending(path: ".DS_Store"))
     try TestSupport.write("x", to: projects.appending(path: "._a.txt"))
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [projects], format: .sevenZip, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [projects], format: .sevenZip, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
     let listing = try await sevenZip(["l", "--", out.path], cwd: dir, password: "pw")
     #expect(!listing.output.contains(".DS_Store"))
@@ -229,7 +229,7 @@ import Testing
   @Test func job_toolMissing() async throws {
     let (_, projects) = try makeProjects()
     let job = ArchiveJob(
-      request: ArchiveRequest(items: [projects], format: .sevenZip, level: .normal, password: "pw"),
+      request: ArchiveRequest(items: [projects], format: .sevenZip, level: .normal, protection: .password("pw")),
       locate: { _ in nil })
     await #expect(throws: ArchiveError.toolMissing(.sevenZip)) {
       try await job.run(progress: { _ in })
@@ -244,7 +244,7 @@ import Testing
   func job_passwordOpensWithOtherTools(format: ArchiveFormat) async throws {
     let (dir, projects) = try makeProjects()
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [projects], format: format, level: .normal, password: "hello")
+      request: ArchiveRequest(items: [projects], format: format, level: .normal, protection: .password("hello"))
     ).run(progress: { _ in })
     let (code, output) = try TestSupport.run(
       TestSupport.sevenZip, ["t", "-phello", "--", out.path], cwd: dir)
@@ -259,7 +259,7 @@ import Testing
     let file = dir.appending(path: "report.pdf")
     try TestSupport.write("pdf", to: file)
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [file], format: format, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [file], format: format, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
     #expect(out.lastPathComponent == "report.pdf.\(format.fileExtension)")
   }
@@ -269,7 +269,7 @@ import Testing
     let file = dir.appending(path: "zero.bin")
     try TestSupport.write("", to: file)
     _ = try await ArchiveJob(
-      request: ArchiveRequest(items: [file], format: .sevenZip, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [file], format: .sevenZip, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
   }
 
@@ -279,7 +279,7 @@ import Testing
     try TestSupport.write("a", to: a)
     try TestSupport.write("b", to: b)
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [a, b], format: .zip, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [a, b], format: .zip, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
     #expect(out.lastPathComponent == "Archive.zip")
   }
@@ -295,7 +295,7 @@ import Testing
     defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path) }
     await #expect(throws: ArchiveError.self) {
       try await ArchiveJob(
-        request: ArchiveRequest(items: [projects], format: .tarZst, level: .fast, password: nil)
+        request: ArchiveRequest(items: [projects], format: .tarZst, level: .fast)
       ).run(progress: { _ in })
     }
     #expect(try leftovers(in: dir).isEmpty)
@@ -308,7 +308,7 @@ import Testing
     try TestSupport.write("o", to: b)
     await #expect(throws: ArchiveError.itemsInDifferentFolders) {
       try await ArchiveJob(
-        request: ArchiveRequest(items: [a, b], format: .sevenZip, level: .normal, password: "pw")
+        request: ArchiveRequest(items: [a, b], format: .sevenZip, level: .normal, protection: .password("pw"))
       ).run(progress: { _ in })
     }
     #expect(
@@ -322,7 +322,7 @@ import Testing
     try TestSupport.write("q", to: q)
     try TestSupport.write("x", to: dir.appending(path: "Whatx.txt"))
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [q], format: .sevenZip, level: .normal, password: "pw")
+      request: ArchiveRequest(items: [q], format: .sevenZip, level: .normal, protection: .password("pw"))
     ).run(progress: { _ in })
     let listing = try await sevenZip(["l", "--", out.path], cwd: dir, password: "pw")
     #expect(listing.output.contains("What?.txt"))
@@ -334,7 +334,7 @@ import Testing
     let at = dir.appending(path: "@notes")
     try TestSupport.write("n", to: at)
     let out = try await ArchiveJob(
-      request: ArchiveRequest(items: [at], format: .tarZst, level: .fast, password: nil)
+      request: ArchiveRequest(items: [at], format: .tarZst, level: .fast)
     ).run(progress: { _ in })
     let tarFile = dir.appending(path: "x.tar")
     try TestSupport.run(TestSupport.zstd, ["-d", "-q", "-o", tarFile.path, out.path])
@@ -347,7 +347,7 @@ import Testing
     let a = dir.appending(path: "a.txt"), b = dir.appending(path: "b.txt")
     try TestSupport.write("a", to: a)
     try TestSupport.write("b", to: b)
-    let request = ArchiveRequest(items: [a, b], format: .sevenZip, level: .normal, password: "pw")
+    let request = ArchiveRequest(items: [a, b], format: .sevenZip, level: .normal, protection: .password("pw"))
     async let first = ArchiveJob(request: request).run(progress: { _ in })
     async let second = ArchiveJob(request: request).run(progress: { _ in })
     let outs = try await [first, second].map(\.lastPathComponent).sorted()
@@ -360,7 +360,7 @@ import Testing
     defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dir.path) }
     do {
       _ = try await ArchiveJob(
-        request: ArchiveRequest(items: [projects], format: .sevenZip, level: .fast, password: "e")
+        request: ArchiveRequest(items: [projects], format: .sevenZip, level: .fast, protection: .password("e"))
       ).run(progress: { _ in })
       Issue.record("should fail")
     } catch let error as ArchiveError {

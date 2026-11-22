@@ -72,42 +72,24 @@ public final class ArchiveJob: @unchecked Sendable {
     let tool = request.format.payload.tool
     guard let toolURL = locate(tool) else { throw ArchiveError.toolMissing(tool) }
     let age: (executable: URL, protection: AgeProtection)?
-    guard request.ageRecipients.isEmpty || request.format == .tarZstAge else {
-      throw ArchiveError.failed("Public keys require the tar.zst.age format.")
-    }
-    switch request.format.encryption {
-    case .none, .sevenZipPassword:
+    switch (request.format.encryption, request.protection) {
+    case (.none, .none), (.sevenZipPassword, .none), (.sevenZipPassword, .password):
       age = nil
-    case .age:
+    case (.age, let protection):
       guard let executable = locate(.age) else { throw ArchiveError.toolMissing(.age) }
-      if request.ageRecipients.isEmpty {
-        guard let password = request.password,
-              PasswordRules.check(password, confirmation: password, format: request.format) == nil
-        else { throw ArchiveError.failed("Enter a valid passphrase for tar.zst.age.") }
+      switch protection {
+      case .password(let password)
+        where PasswordRules.check(password, confirmation: password, format: request.format) == nil:
         age = (executable, .passphrase(password))
-      } else {
-        guard request.password == nil else {
-          throw ArchiveError.invalidAgeRecipients("Choose public keys or a passphrase.")
-        }
-        var keys: [(line: Int, key: String)] = []
-        for (index, value) in request.ageRecipients.enumerated() {
-          let line = value.trimmingCharacters(in: .whitespaces)
-          if line.isEmpty || line.hasPrefix("#") { continue }
-          guard let key = AgeCommand.recipientKey(line) else {
-            throw ArchiveError.invalidAgeRecipients("Line \(index + 1): Enter a valid age, ssh-ed25519, or ssh-rsa public key.")
-          }
-          keys.append((index + 1, key))
-        }
-        guard let firstKey = keys.first else {
-          throw ArchiveError.invalidAgeRecipients("Enter at least one recipient public key.")
-        }
-        let isPostQuantum = firstKey.key.hasPrefix("age1pq1")
-        if let mixed = keys.first(where: { $0.key.hasPrefix("age1pq1") != isPostQuantum }) {
-          throw ArchiveError.invalidAgeRecipients(
-            "Line \(mixed.line): Use either post-quantum age keys or classic age and SSH keys for all recipients.")
-        }
-        age = (executable, .recipients(keys))
+      case .ageRecipients(let recipients):
+        age = (executable, .recipients(try recipients.validatedKeys()))
+      case .none, .password:
+        throw ArchiveError.failed("Enter a valid passphrase for tar.zst.age.")
       }
+    case (.none, .password):
+      throw ArchiveError.failed("This format does not support passwords.")
+    case (_, .ageRecipients):
+      throw ArchiveError.failed("Public keys require the tar.zst.age format.")
     }
 
     let inventory: FileInventory
@@ -251,10 +233,10 @@ public final class ArchiveJob: @unchecked Sendable {
     }
     defer { try? FileManager.default.removeItem(at: list) }
     let args = CommandBuilder.sevenZipCreate(
-      format: request.format, level: request.level, hasPassword: request.password != nil,
+      format: request.format, level: request.level, hasPassword: request.protection.password != nil,
       archive: partial, excludeList: list, itemNames: names)
     let runner = PTYRunner(
-      executable: sevenZip, arguments: args, currentDirectory: cwd, password: request.password)
+      executable: sevenZip, arguments: args, currentDirectory: cwd, password: request.protection.password)
     setStop { runner.terminate() }
     let result = try await runner.run(onOutput: { chunk in
       if let f = ProgressParser.fraction(from: chunk) { progress(.compressing(f)) }
@@ -356,7 +338,7 @@ public final class ArchiveJob: @unchecked Sendable {
     case .sevenZip:
       let runner = PTYRunner(
         executable: tool, arguments: CommandBuilder.sevenZipTest(archive: partial),
-        currentDirectory: partial.deletingLastPathComponent(), password: request.password)
+        currentDirectory: partial.deletingLastPathComponent(), password: request.protection.password)
       let result = try await run(runner)
       if isCancelled { throw ArchiveError.cancelled }
       guard result.exitCode == 0, Self.testedFileCount(result.output) == expectedFiles else {

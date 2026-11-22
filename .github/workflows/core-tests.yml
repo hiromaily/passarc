@@ -1,0 +1,24 @@
+name: Core tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  core-tests:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install archive tools
+        run: brew install sevenzip zstd age
+      - name: Run Core tests with real archive tools
+        run: |
+          set -euo pipefail
+          export PASSARC_TEST_AGE="$(command -v age)"
+          "$PASSARC_TEST_AGE" --version
+          swift test --package-path Core

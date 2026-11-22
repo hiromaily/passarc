@@ -193,6 +193,8 @@ backend separately from an outer encryption step such as age. Keep the compatibi
 For a new format, exercise creation, verification, and extraction with the real tools. Check an incorrect
 passphrase, cancellation cleanup, and preservation of symbolic links where applicable. To test with a
 standalone age executable, run `PASSARC_TEST_AGE=/path/to/age swift test --package-path Core --filter ExtractionJobTests`.
+The [Core tests workflow](../.github/workflows/core-tests.yml) installs all three archive tools on macOS
+and sets `PASSARC_TEST_AGE` so the encrypted tar.zst round-trip runs on every pull request and push to main.
 Run the full Core suite and build both the app and Finder extension before checking the Finder menu.
 
 ## tar, zstd and files

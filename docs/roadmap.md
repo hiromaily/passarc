@@ -15,6 +15,11 @@ Make it easier to create a password-protected archive from Finder, share it, and
 
 - **Sign and notarize public builds.** Resume when the signing and notarization prerequisites are ready.
 
+## Archive processing improvements to evaluate
+
+- **Reduce temporary disk usage during extraction.** Measure peak disk usage for large `.tar.zst` and `.tar.zst.age` archives. Evaluate streaming Zstandard output directly into tar to eliminate the intermediate `.tar` file. Publish extracted files only after all stages succeed, and verify cleanup on failure or cancellation.
+- **Review shared encryption code when adding another method.** Compare how the new method and age locate tools, accept passphrases or keys, and report errors during creation, verification, and extraction. Consolidate the parts that follow the same workflow.
+
 ## Encrypted archive formats to evaluate
 
 Compare recipient tool support, password and public-key workflows, file name protection, and the dependencies needed to create, verify, and extract each format before adding another option.

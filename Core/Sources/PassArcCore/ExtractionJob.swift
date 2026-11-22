@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import Synchronization
 
 public enum ExtractionError: LocalizedError, Equatable, Sendable {
   case unsupportedArchive
@@ -82,9 +83,7 @@ public struct ExtractionJob: Sendable {
 
     switch format.payload {
     case .tarZst:
-      let tar = staging.appending(path: "archive.tar")
-      try check(await run(executable, ["-d", "-q", "-o", tar.path, "--", compressed.path], in: staging))
-      try check(await run(URL(filePath: "/usr/bin/tar"), ["-x", "-f", tar.path], in: payload))
+      try await extractTarZst(zstd: executable, compressed: compressed, staging: staging, payload: payload)
     case .sevenZip:
       let result = try await run(
         executable, ["x", "-y", "-bsp0", "-spd", "-t\(format.fileExtension)", "--", archive.path],
@@ -112,6 +111,72 @@ public struct ExtractionJob: Sendable {
       let code = errno
       guard code == EEXIST else { throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO) }
       occupied.insert(destination)
+    }
+  }
+
+  private func extractTarZst(zstd: URL, compressed: URL, staging: URL, payload: URL) async throws {
+    let stream = Pipe()
+    // tar can finish at the end-of-archive marker before zstd has validated the full input.
+    let remainingFD = fcntl(stream.fileHandleForReading.fileDescriptor, F_DUPFD_CLOEXEC, 0)
+    guard remainingFD >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+    let remaining = FileHandle(fileDescriptor: remainingFD, closeOnDealloc: true)
+    // Capture diagnostics in staging so either process can write freely while we wait for both.
+    let diagnostics = staging.appending(path: "extraction.log")
+    try Data().write(to: diagnostics)
+    let errors = try FileHandle(forWritingTo: diagnostics)
+    defer { try? errors.close() }
+
+    let tar = Process()
+    tar.executableURL = URL(filePath: "/usr/bin/tar")
+    tar.arguments = ["-x", "-f", "-"]
+    tar.currentDirectoryURL = payload
+    tar.standardInput = stream
+    tar.standardOutput = FileHandle.nullDevice
+    tar.standardError = errors
+
+    let decompress = Process()
+    decompress.executableURL = zstd
+    decompress.arguments = ["-d", "-q", "-c", "--", compressed.path]
+    decompress.currentDirectoryURL = staging
+    decompress.standardInput = FileHandle.nullDevice
+    decompress.standardOutput = stream
+    decompress.standardError = errors
+
+    let cancelled = Mutex(false)
+    try await withTaskCancellationHandler {
+      let launched = try cancelled.withLock { cancelled in
+        if cancelled { throw CancellationError() }
+        try tar.run()
+        // Foundation closes its copy of each pipe endpoint when the corresponding process starts.
+        return Result { try decompress.run() }
+      }
+      if case .failure = launched {
+        try? stream.fileHandleForWriting.close()
+        if tar.isRunning { tar.terminate() }
+      }
+      await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+        Thread {
+          tar.waitUntilExit()
+          if case .success = launched, tar.terminationStatus == 0 {
+            while let chunk = try? remaining.read(upToCount: 64 * 1024), !chunk.isEmpty {}
+          }
+          try? remaining.close()
+          if case .success = launched { decompress.waitUntilExit() }
+          continuation.resume()
+        }.start()
+      }
+      try Task.checkCancellation()
+      try launched.get()
+      if decompress.terminationStatus != 0 || tar.terminationStatus != 0 {
+        let output = String(decoding: try Data(contentsOf: diagnostics), as: UTF8.self)
+        throw ExtractionError.failed(output.split(separator: "\n").suffix(12).joined(separator: "\n"))
+      }
+    } onCancel: {
+      cancelled.withLock { cancelled in
+        cancelled = true
+        if decompress.isRunning { decompress.terminate() }
+        if tar.isRunning { tar.terminate() }
+      }
     }
   }
 

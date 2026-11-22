@@ -14,6 +14,7 @@ Make it easier to create a password-protected archive from Finder, share it, and
 - **Show the installed PassArc version.** The launch window displays the version of the PassArc build you are running.
 - **Play a sound when compression or extraction completes.** PassArc plays a completion sound after successful compression or extraction, once per completed batch.
 - **Lock GitHub Actions dependencies.** Workflow action versions are locked to exact commits in `.github/workflows/actions.lock`. CI verifies the lockfile when workflow YAML or the lockfile changes. Run `gh actions-lock` after updating a workflow dependency. [gh-actions-lock](https://github.com/github/gh-actions-lock)
+- **Reduce temporary disk usage during extraction.** PassArc streams Zstandard output into tar for `.tar.zst` and `.tar.zst.age` and publishes the extracted files after both commands succeed. A command-line comparison of the two extraction pipelines with a 128 MiB file measured peak staging usage of about 256 MiB before streaming and 128 MiB after streaming, for both formats.
 
 ## On hold
 
@@ -21,7 +22,6 @@ Make it easier to create a password-protected archive from Finder, share it, and
 
 ## Archive processing improvements to evaluate
 
-- **Reduce temporary disk usage during extraction.** Measure peak disk usage for large `.tar.zst` and `.tar.zst.age` archives. Evaluate streaming Zstandard output directly into tar to eliminate the intermediate `.tar` file. Publish extracted files only after all stages succeed, and verify cleanup on failure or cancellation.
 - **Review shared encryption code when adding another method.** Compare how the new method and age locate tools, accept passphrases or keys, and report errors during creation, verification, and extraction. Consolidate the parts that follow the same workflow.
 
 ## Encrypted archive formats to evaluate

@@ -91,4 +91,64 @@ import Testing
     }
     #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path) == ["broken.zip"])
   }
+
+  @Test func validatesZstdFramesAfterTheTarEndMarker() async throws {
+    let dir = try TestSupport.makeTempDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let source = dir.appending(path: "hello.txt")
+    try TestSupport.write("hello", to: source)
+    let archive = try await ArchiveJob(
+      request: ArchiveRequest(items: [source], format: .tarZst, level: .fast, password: nil)
+    ).run(progress: { _ in })
+
+    let padding = dir.appending(path: "padding")
+    try Data(count: 1024 * 1024).write(to: padding)
+    let frame = dir.appending(path: "padding.zst")
+    let zstd = try #require(ToolLocator.locate(.zstd))
+    let (status, _) = try TestSupport.run(zstd, ["--check", "-o", frame.path, "--", padding.path])
+    try #require(status == 0)
+    var trailingFrame = try Data(contentsOf: frame)
+    var archiveBytes = try Data(contentsOf: archive)
+    archiveBytes.append(trailingFrame)
+    try archiveBytes.write(to: archive)
+    let extracted = try await ExtractionJob(archive: archive).run()
+    #expect(try String(contentsOf: extracted.appending(path: "hello.txt"), encoding: .utf8) == "hello")
+
+    let lastByte = try #require(trailingFrame.indices.last)
+    trailingFrame[lastByte] ^= 1
+    var corruptBytes = Data(archiveBytes.dropLast(trailingFrame.count))
+    corruptBytes.append(trailingFrame)
+    let broken = dir.appending(path: "broken.tar.zst")
+    try corruptBytes.write(to: broken)
+    await #expect(throws: ExtractionError.self) {
+      try await ExtractionJob(archive: broken).run()
+    }
+    let remaining = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+    #expect(!remaining.contains("broken"))
+    #expect(!remaining.contains { $0.hasSuffix(".partial") })
+  }
+
+  @Test func cancelledTarZstExtractionRemovesStaging() async throws {
+    let dir = try TestSupport.makeTempDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let archive = dir.appending(path: "cancel.tar.zst")
+    try TestSupport.write("unused", to: archive)
+    let fakeZstd = dir.appending(path: "zstd")
+    try TestSupport.write("#!/bin/sh\ntouch ../started\nexec /bin/sleep 5\n", to: fakeZstd)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fakeZstd.path)
+    let task = Task {
+      try await ExtractionJob(archive: archive, locate: { _ in fakeZstd }).run()
+    }
+    defer { task.cancel() }
+    let marker = dir.appending(path: "started")
+    for _ in 0 ..< 200 where !FileManager.default.fileExists(atPath: marker.path) {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    let started = FileManager.default.fileExists(atPath: marker.path)
+    task.cancel()
+    await #expect(throws: CancellationError.self) { try await task.value }
+    #expect(started)
+    let remaining = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+    #expect(Set(remaining) == ["cancel.tar.zst", "zstd", "started"])
+  }
 }

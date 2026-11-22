@@ -17,7 +17,7 @@ public enum PasswordRules {
     _ password: String, confirmation: String, format: ArchiveFormat? = nil
   ) -> PasswordProblem? {
     if password.isEmpty { return .empty }
-    let printableASCII = password.unicodeScalars.allSatisfy { (0x20...0x7E).contains($0.value) }
+    let printableASCII = password.unicodeScalars.allSatisfy { (0x20 ... 0x7E).contains($0.value) }
     if !printableASCII { return .nonASCII }
     if let limit = format?.maximumPasswordBytes, password.utf8.count > limit { return .tooLong }
     if password != confirmation { return .mismatch }

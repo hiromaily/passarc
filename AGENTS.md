@@ -15,6 +15,10 @@ PassArc is a macOS app that creates archives next to the files or folders select
 - Write to a temporary `.partial` file and move it to its final name after verification succeeds. Remove partial files on failure or cancellation and avoid overwriting existing archives, including when jobs run concurrently.
 - Preserve the exclusion of `.DS_Store` and `._*` files and store symbolic links as links.
 
+## Lint and formatting
+
+Use `mise run format` to format Swift and shell scripts and `mise run lint` before submitting changes. Keep formatter rules in `.swiftformat` and tool versions and task definitions in `mise.toml`. CI runs the same lint task. See [Lint and formatting](docs/development-notes.md#lint-and-formatting) for setup and scope.
+
 ## Build and verification
 
 Create temporary working directories for development and testing under `/tmp` with `mktemp -d /tmp/passarc.XXXXXX`. Remove every temporary directory created for the task when the work ends, including after failed or cancelled tests. For scripts, register an `EXIT` trap immediately after creating the directory so early exits also clean it up.

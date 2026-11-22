@@ -7,7 +7,7 @@ private let log = Logger(subsystem: "local.passarc.app", category: "notification
 /// The completion notification. Clicking it reveals the results in Finder.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
-  private lazy var center = UNUserNotificationCenter.current()  // created lazily: it throws outside an app bundle
+  private lazy var center = UNUserNotificationCenter.current() // created lazily: it throws outside an app bundle
   private lazy var completionSound = NSSound(named: "Glass")
 
   func playCompletionSound() {

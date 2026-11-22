@@ -45,7 +45,7 @@ final class ArchiveDialogModel {
 
     let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".utf8)
     var random = SystemRandomNumberGenerator()
-    let bytes = (0..<24).map { _ in alphabet[Int.random(in: alphabet.indices, using: &random)] }
+    let bytes = (0 ..< 24).map { _ in alphabet[Int.random(in: alphabet.indices, using: &random)] }
     let password = String(decoding: bytes, as: UTF8.self)
     state.password = password
     state.confirmation = password

@@ -8,7 +8,12 @@ xcrun swiftc -parse-as-library -swift-version 6 -target arm64-apple-macos15.0 -m
   -emit-library -static -emit-module -emit-module-path "$OUT/lib/PassArcCore.swiftmodule" \
   -o "$OUT/lib/libPassArcCore.a" "$ROOT"/Core/Sources/PassArcCore/*.swift
 # Leave out AppDelegate.swift (it has @main)
-APP_SOURCES=$(ls "$ROOT"/App/*.swift | grep -v AppDelegate.swift)
+APP_SOURCES=()
+for source in "$ROOT"/App/*.swift; do
+  if [[ "${source##*/}" != AppDelegate.swift ]]; then
+    APP_SOURCES+=("$source")
+  fi
+done
 xcrun swiftc -swift-version 6 -target arm64-apple-macos15.0 -module-name Snapshot -I "$OUT/lib" -L "$OUT/lib" \
-  -lPassArcCore -o "$OUT/snapshot" $APP_SOURCES "$ROOT/scripts/snapshot/main.swift"
+  -lPassArcCore -o "$OUT/snapshot" "${APP_SOURCES[@]}" "$ROOT/scripts/snapshot/main.swift"
 "$OUT/snapshot" "$1"

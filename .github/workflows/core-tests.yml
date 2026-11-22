@@ -2,8 +2,18 @@ name: Core tests
 
 on:
   pull_request:
+    paths:
+      - 'Core/**'
+      - '.github/workflows/core-tests.yml'
   push:
     branches: [main]
+    paths:
+      - 'Core/**'
+      - '.github/workflows/core-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -13,12 +23,25 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
-      - name: Install archive tools
-        run: brew install sevenzip zstd age
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install missing archive tools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -x /opt/homebrew/bin/7zz || -x /usr/local/bin/7zz ]] || missing+=(sevenzip)
+          [[ -x /opt/homebrew/bin/zstd || -x /usr/local/bin/zstd ]] || missing+=(zstd)
+          command -v age >/dev/null || missing+=(age)
+          if (( ${#missing[@]} > 0 )); then
+            brew install "${missing[@]}"
+          fi
       - name: Run Core tests with real archive tools
         run: |
           set -euo pipefail
-          export PASSARC_TEST_AGE="$(command -v age)"
+          PASSARC_TEST_AGE="$(command -v age)"
+          export PASSARC_TEST_AGE
           "$PASSARC_TEST_AGE" --version
           swift test --package-path Core

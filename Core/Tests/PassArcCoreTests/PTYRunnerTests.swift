@@ -67,7 +67,7 @@ import Testing
   @Test(.timeLimit(.minutes(1))) func pty_longPasswordDoesNotHang() async throws {
     let dir = try TestSupport.makeTempDir()
     try TestSupport.write("hello", to: dir.appending(path: "a.txt"))
-    let password = String(repeating: "abcdefghij", count: 200)  // 2000 characters
+    let password = String(repeating: "abcdefghij", count: 200) // 2000 characters
     let made = try await sevenZip(
       ["a", "-t7z", "-mhe=on", "-p", "--", "out.7z", "a.txt"], cwd: dir, password: password)
     #expect(made.exitCode == 0, "\(made.output)")

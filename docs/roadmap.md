@@ -13,10 +13,7 @@ Make it easier to create a password-protected archive from Finder, share it, and
 - **Create and extract passphrase-encrypted tar.zst archives.** age encrypts the entire compressed archive, including its file names. Recipients need PassArc or compatible age and Zstandard tools. [age format specification](https://age-encryption.org/v1)
 - **Show the installed PassArc version.** The launch window displays the version of the PassArc build you are running.
 - **Play a sound when compression or extraction completes.** PassArc plays a completion sound after successful compression or extraction, once per completed batch.
-
-## Planned
-
-- **Lock GitHub Actions dependencies.** Use the latest release of `gh-actions-lock` available at implementation time. Update workflow actions to their latest releases at that time, lock them to exact commits in `.github/workflows/actions.lock`, and verify the lockfile in CI. [gh-actions-lock](https://github.com/github/gh-actions-lock)
+- **Lock GitHub Actions dependencies.** Workflow action versions are locked to exact commits in `.github/workflows/actions.lock`. CI verifies the lockfile when workflow YAML or the lockfile changes. Run `gh actions-lock` after updating a workflow dependency. [gh-actions-lock](https://github.com/github/gh-actions-lock)
 
 ## On hold
 

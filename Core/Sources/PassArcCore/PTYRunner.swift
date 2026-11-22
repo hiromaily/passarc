@@ -99,7 +99,7 @@ public final class PTYRunner: @unchecked Sendable {
         while true {
           let n = read(masterFD, &buffer, buffer.count)
           if n > 0 {
-            let chunk = Data(buffer[0..<n])
+            let chunk = Data(buffer[0 ..< n])
             all.append(chunk)
             let text = String(decoding: chunk, as: UTF8.self)
               .replacingOccurrences(of: "\r\n", with: "\n")
@@ -118,7 +118,7 @@ public final class PTYRunner: @unchecked Sendable {
           } else if n < 0 && errno == EINTR {
             continue
           } else {
-            break  // EOF, or the child closed the terminal (EIO)
+            break // EOF, or the child closed the terminal (EIO)
           }
         }
         close(masterFD)

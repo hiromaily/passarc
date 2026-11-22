@@ -70,7 +70,7 @@ public final class ArchiveJob: @unchecked Sendable {
       age = nil
     case .age:
       guard let password = request.password,
-        PasswordRules.check(password, confirmation: password, format: request.format) == nil
+            PasswordRules.check(password, confirmation: password, format: request.format) == nil
       else { throw ArchiveError.failed("Enter a valid passphrase for tar.zst.age.") }
       guard let executable = locate(.age) else { throw ArchiveError.toolMissing(.age) }
       age = (executable, password)

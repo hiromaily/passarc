@@ -12,11 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   static func main() {
-    signal(SIGPIPE, SIG_IGN)  // a closed pipe to a child process must not kill the app
+    signal(SIGPIPE, SIG_IGN) // a closed pipe to a child process must not kill the app
     let app = NSApplication.shared
     let delegate = AppDelegate()
     app.delegate = delegate
-    app.setActivationPolicy(.accessory)  // no Dock icon
+    app.setActivationPolicy(.accessory) // no Dock icon
     app.run()
   }
 

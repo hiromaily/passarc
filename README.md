@@ -79,12 +79,14 @@ Right-click a single `.7z`, `.zip`, `.tar.zst`, or `.tar.zst.age` file in Finder
 
 ## Choose an archive format
 
-| Format | Password protection | When to use it |
-| --- | --- | --- |
-| **7z** (default) | AES-256 for contents and file names | Keep file names private in a password-protected archive. |
-| **ZIP** | AES-256 for contents | Choose a familiar format when the recipient has an app that supports AES-encrypted ZIP. File names stay visible. |
-| **tar.zst** | Unavailable | Compress files with Zstandard when no password is needed. |
-| **tar.zst.age** | age passphrase encryption for contents and file names | Keep the entire Zstandard archive private. The recipient needs PassArc with `age` and `zstd` installed or equivalent tools. |
+| Format | Encryption method | File contents | File names inside the archive | When to use it |
+| --- | --- | --- | --- | --- |
+| **7z** (default) | AES-256 with a password | Encrypted | Encrypted | Share private files with a recipient who can open encrypted 7z archives. |
+| **ZIP** | AES-256 with a password | Encrypted | Visible | Choose a familiar format when the recipient has an app that supports AES-encrypted ZIP and the file names can be shared openly. |
+| **tar.zst.age** | age with a passphrase | Encrypted | Encrypted | Encrypt the entire Zstandard archive. The recipient needs PassArc with `age` and `zstd` installed or equivalent tools. |
+| **tar.zst** | None | Readable without a password | Visible | Use Zstandard for fast compression and extraction when encryption is unnecessary, such as when packaging public files. |
+
+The table shows what PassArc encrypts when password protection is enabled. Without it, 7z and ZIP leave both contents and file names readable. Use a strong, unique password or passphrase for encrypted archives. The archive’s own name remains visible in every format.
 
 Each format offers **Fast**, **Normal**, and **Maximum** compression. Recipients who use macOS can open encrypted 7z and ZIP archives with PassArc or another compatible app such as The Unarchiver.
 

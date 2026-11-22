@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ArchiveFormat: String, CaseIterable, Sendable, Codable {
-  case sevenZip, zip, tarZst, tarZstAge
+  case sevenZip, zip, tarZstAge, tarZst
 
   enum Payload {
     case sevenZip, tarZst

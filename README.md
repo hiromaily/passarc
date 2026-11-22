@@ -98,7 +98,7 @@ If you trust the copy you installed, click **Done** in the warning, then open **
 
 Open PassArc once, then confirm **PassArcFinder** is enabled under **System Settings → General → Login Items & Extensions → Finder**. Open a new Finder window and try again. If the menu is still missing, wait for current Finder operations to finish, then hold **Option**, right-click Finder in the Dock, and choose **Relaunch**.
 
-If you have separate Homebrew and source builds installed, check which copy registered its extension with `pluginkit -m -A -D -v -i local.passarc.app.finder`. A leading `+` means the extension is enabled.
+If the menu is still missing after an upgrade, check for [duplicate Finder extension registrations](docs/development-notes.md#recover-a-missing-finder-menu). An older source or temporary build can remain registered alongside the installed version.
 
 ### Completion notifications are missing
 

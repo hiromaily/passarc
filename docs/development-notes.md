@@ -115,6 +115,30 @@ environment where process arguments are visible.
   A throwaway build in another folder received the URL instead of the installed app. `build.sh --install` now
   unregisters the copy in `build/` (`lsregister -u`). To inspect: `lsregister -dump URLSchemeBinding | grep passarc`.
 
+## Recover a missing Finder menu
+
+In an interactive macOS session, list all registered copies of the PassArc Finder extension:
+
+```sh
+pluginkit -m -A -D -v -i local.passarc.app.finder
+```
+
+Check the version and path of each result. A leading `+` means the extension is enabled. During the v0.6.1 upgrade incident, both the Homebrew copy in `/Applications` and an older test copy under `/private/tmp` appeared with `+`, while the context menu was missing.
+
+If you find an obsolete copy, pass its exact `.appex` path from the listing to `pluginkit -r`. This unregisters the identified extension. Then register and enable the intended copy. For a default Homebrew installation:
+
+```sh
+installed=/Applications/PassArc.app
+pluginkit -a "$installed/Contents/PlugIns/PassArcFinder.appex"
+pluginkit -e use -i local.passarc.app.finder
+open -a "$installed"
+pluginkit -m -A -D -v -i local.passarc.app.finder
+```
+
+Confirm that the intended version and path are enabled, then right-click a folder in Finder and choose **Archive with Password**. Confirm that the Archive dialog opens. Removing the obsolete registration and re-registering the installed copy restored the menu in the v0.6.1 incident. The cause of the missing menu was not isolated from the other registration changes.
+
+After testing a temporary or source build, unregister its Finder extension by exact path before removing the test bundle. Recheck the registration list and confirm the intended installed version is enabled.
+
 ## Verify the drag-and-drop launch window
 
 Build the app and use a macOS session where PassArcFinder is disabled. Open the built PassArc directly and check that it shows **Drop files or folders here** and **Enable Finder Extension…**.

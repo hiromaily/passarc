@@ -10,7 +10,7 @@ Right-click in Finder or drop files into PassArc. Save the archive right next to
   <a href="https://github.com/hiromaily/passarc/releases">Releases</a>
 </p>
 
-<p align="center"><img src="docs/images/archive-dialog.png" width="398" alt="PassArc’s Archive dialog showing 7z encryption, compression levels, and Generate Password and Copy Password buttons"></p>
+<p align="center"><img src="docs/images/archive-dialog.png" width="398" alt="PassArc compression dialog showing archive formats, compression levels, and password controls"></p>
 
 ## Features
 
@@ -60,6 +60,8 @@ brew uninstall --cask hiromaily/tap/passarc
 1. **From Finder**, enable **PassArcFinder** in **System Settings → General → Login Items & Extensions → Finder**, then right-click files or folders and choose **Archive with Password**. **From PassArc**, open the app and drop your items onto its window.
 2. Choose a format and compression level. With **Protect with a password** enabled, enter a password in both fields or click **Generate Password**. Use **Copy Password** if you need to share it separately. To select **tar.zst**, turn off password protection.
 3. Click **Compress**. PassArc saves the verified archive next to the original items. To create one archive, select items from the same parent folder. To create one archive per folder, select only folders and turn on **Create a separate archive for each folder**. To compress the immediate subfolders of one parent folder, select the parent and turn on **Create a separate archive for each immediate subfolder**. PassArc saves one archive per subfolder inside the parent. Any archives already saved are kept if the batch stops.
+
+<p align="center"><img src="docs/images/launch-window.png" width="360" alt="PassArc launch window with a drop area labeled Drop files or folders here"></p>
 
 <details>
 <summary>See the Finder menus</summary>

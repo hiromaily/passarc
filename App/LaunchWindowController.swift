@@ -25,6 +25,7 @@ final class LaunchWindowController {
 private struct LaunchView: View {
   let onDrop: ([URL]) -> Void
   @State private var isTargeted = false
+  private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
 
   var body: some View {
     VStack(spacing: 12) {
@@ -33,6 +34,11 @@ private struct LaunchView: View {
         Button("Enable Finder Extension…") {
           FIFinderSyncController.showExtensionManagementInterface()
         }
+      }
+      if let version {
+        Text("Version \(version)")
+          .font(.footnote)
+          .foregroundStyle(.secondary)
       }
     }
     .padding(20)

@@ -5,6 +5,7 @@ import SwiftUI
 struct ArchiveDialogView: View {
   @Bindable var model: ArchiveDialogModel
   @State private var showHelp = false
+  private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
@@ -117,6 +118,11 @@ struct ArchiveDialogView: View {
       HStack {
         HelpLink { showHelp = true }
           .popover(isPresented: $showHelp, arrowEdge: .bottom) { ArchiveHelpView() }
+        if let version {
+          Text("Version \(version)")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
         Spacer()
         Button("Cancel") { model.close() }
           .keyboardShortcut(.cancelAction)

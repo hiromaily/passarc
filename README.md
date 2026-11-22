@@ -106,13 +106,15 @@ Open **System Settings → Notifications → PassArc** and turn on **Allow Notif
 
 ## Build from source
 
-On Apple Silicon with macOS 15 or later, use Swift 6 and Xcode Command Line Tools with a macOS 15 or later SDK. Run these commands from the repository root.
+On Apple Silicon with macOS 15 or later, install Homebrew and Xcode Command Line Tools with Swift 6 and a macOS 15 or later SDK. Use `xcode-select --install` if the Command Line Tools are missing. Run these commands from the repository root.
 
 ```sh
-brew install sevenzip zstd age
+scripts/setup-dev.sh
 scripts/build.sh --install
 swift test --package-path Core
 ```
+
+`scripts/setup-dev.sh` installs the development dependencies. For the full dependency list and manual setup, see the [development notes](docs/development-notes.md#development-setup).
 
 `scripts/build.sh --install` installs PassArc in `~/Applications` and registers the Finder extension. Use `scripts/build.sh` to build the app in `build/scripts/`. Core tests require Swift Testing.
 

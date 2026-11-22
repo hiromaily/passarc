@@ -4,13 +4,25 @@ Things we learned while building PassArc (2026-11-08) that are not obvious from 
 happened, why, and what the code does about it. Read this before changing the build, the dialog, or how 7-Zip is
 called.
 
-## Lint and formatting
+## Development setup
 
-Install [mise](https://mise.jdx.dev/getting-started.html) with `brew install mise`, then run these commands from the repository root.
+Use Apple Silicon with macOS 15 or later, Homebrew, and Xcode Command Line Tools with Swift 6 and a macOS 15 or later SDK. Run `scripts/setup-dev.sh` from the repository root, or set up the tools manually.
 
 ```sh
-mise trust
+brew install sevenzip zstd age mise
+mise trust mise.toml
 mise install
+```
+
+PassArc uses `7zz`, `zstd`, and `age` for archive operations. The repository's `mise.toml` pins SwiftFormat, shfmt, ShellCheck, and actionlint. Python is not a PassArc dependency. If `mise install` reports an unexpected tool, use `mise ls` to find the configuration that declares it.
+
+Installing missing tools requires network access and can use GitHub to fetch or verify releases. If GitHub rate-limits setup, rerun `mise install` after the reported reset time. Once the tools are installed, formatting and lint run locally, including with `MISE_OFFLINE=1`.
+
+## Lint and formatting
+
+Run these commands from the repository root.
+
+```sh
 mise run format
 mise run lint
 ```

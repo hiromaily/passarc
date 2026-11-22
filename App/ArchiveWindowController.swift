@@ -12,7 +12,7 @@ final class ArchiveWindowController: NSObject, NSWindowDelegate {
     let hosting = NSHostingController(rootView: ArchiveDialogView(model: model))
     hosting.sizingOptions = .preferredContentSize
     window = NSWindow(contentViewController: hosting)
-    window.title = "Archive"
+    window.title = "PassArc"
     window.styleMask = [.titled, .closable]
     window.isReleasedWhenClosed = false
     super.init()

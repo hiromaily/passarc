@@ -16,6 +16,10 @@ final class ArchiveDialogModel {
   let canCompressSeparately: Bool
   var compressSeparately = false
   var state: DialogState
+  var useAgeRecipients = false
+  var ageRecipientText = ""
+  private(set) var recipientFileMessage: String?
+  private(set) var recipientValidationMessage: String?
   private(set) var phase: Phase = .editing
   private(set) var currentFolder: String?
   var close: () -> Void = {}
@@ -38,6 +42,36 @@ final class ArchiveDialogModel {
 
   var title: String {
     items.count == 1 ? "📁 Compress “\(items[0].lastPathComponent)”" : "📁 Compress \(items.count) items"
+  }
+
+  var usesPublicKeys: Bool { state.format == .tarZstAge && state.usePassword && useAgeRecipients }
+
+  private var ageRecipients: [String] {
+    ageRecipientText.split(whereSeparator: \.isNewline)
+      .map { $0.trimmingCharacters(in: .whitespaces) }
+      .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+  }
+
+  var canSubmit: Bool {
+    usesPublicKeys ? !ageRecipients.isEmpty : state.canSubmit
+  }
+
+  func importRecipients(from url: URL) {
+    recipientFileMessage = nil
+    do {
+      let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+      guard values.isRegularFile == true else { throw CocoaError(.fileReadUnsupportedScheme) }
+      let file = try FileHandle(forReadingFrom: url)
+      defer { try? file.close() }
+      let limit = 64 * 1024
+      guard let data = try file.read(upToCount: limit + 1), data.count <= limit,
+            let text = String(data: data, encoding: .utf8)
+      else { throw CocoaError(.fileReadCorruptFile) }
+      if !ageRecipientText.isEmpty { ageRecipientText.append("\n") }
+      ageRecipientText.append(text)
+    } catch {
+      recipientFileMessage = "Choose a UTF-8 text file containing recipient public keys (up to 64 KiB)."
+    }
   }
 
   func generatePassword() {
@@ -63,14 +97,18 @@ final class ArchiveDialogModel {
   }
 
   func submit() {
-    guard state.canSubmit, phase == .editing else { return }
+    guard canSubmit, phase == .editing else { return }
     settings.save(state)
     let separately = canCompressSeparately && compressSeparately
     let format = state.format
     let level = state.level
-    let password = state.usePassword ? state.password : nil
+    let password = state.usePassword && !usesPublicKeys ? state.password : nil
+    let recipients = usesPublicKeys
+      ? ageRecipientText.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
+      : []
     state.password = ""
     state.confirmation = ""
+    recipientValidationMessage = nil
 
     phase = .running(.compressing(nil))
     Task {
@@ -97,7 +135,7 @@ final class ArchiveDialogModel {
             currentFolder = "Folder \(index + 1) of \(groups.count) · \(group[0].lastPathComponent)"
           }
           let job = ArchiveJob(request: ArchiveRequest(
-            items: group, format: format, level: level, password: password))
+            items: group, format: format, level: level, password: password, ageRecipients: recipients))
           self.job = job
           phase = .running(.compressing(nil))
           let output = try await job.run { progress in
@@ -123,6 +161,12 @@ final class ArchiveDialogModel {
         }
       } catch {
         job = nil
+        if case ArchiveError.invalidAgeRecipients(let detail) = error, outputs.isEmpty {
+          recipientValidationMessage = detail
+          currentFolder = nil
+          phase = .editing
+          return
+        }
         let detail = (error as? ArchiveError)?.message ?? error.localizedDescription
         guard let currentFolder else {
           phase = .failed(detail, saved: outputs)

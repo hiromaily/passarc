@@ -19,7 +19,7 @@ Right-click in Finder or drop files into PassArc. Save the archive right next to
 | **Archive from Finder** | Right-click files or folders and choose **Archive with Password**. |
 | **Drag and drop** | Drop files or folders onto the PassArc window, even with the Finder extension disabled. |
 | **Encrypt with AES-256** | Protect 7z and ZIP archives with a password. Protected 7z archives also hide file names. |
-| **Encrypt with age** | Protect a tar.zst archive and its file names with a passphrase. |
+| **Encrypt with age** | Protect a tar.zst archive and its file names with a passphrase or recipient public keys. |
 | **Generate and copy passwords** | Fill both password fields with a random 24-character password and copy it to share separately. |
 | **Check format compatibility** | See what the recipient will need to open the archive before you compress. |
 | **Compress folders individually** | Select several folders and save a separate archive next to each one in a single run. |
@@ -77,13 +77,21 @@ brew uninstall --cask hiromaily/tap/passarc
 
 Right-click a single `.7z`, `.zip`, `.tar.zst`, or `.tar.zst.age` file in Finder and choose **Extract with PassArc**. If prompted, enter the password and click **Extract**. PassArc creates a folder beside the archive and reveals it in Finder.
 
+For a `.tar.zst.age` archive encrypted with your public key, click **Choose Identity…** and select the corresponding age or SSH private key file. If the SSH key is protected by a passphrase, enter it when prompted.
+
+### Encrypt with public keys
+
+Choose **tar.zst.age → Public keys**, then paste one recipient key per line or choose **Import Recipient File…**. PassArc accepts native age keys and SSH Ed25519 or RSA public keys. Any listed recipient can decrypt the archive with their matching private key. Use a recent version of age for post-quantum keys and use post-quantum keys for every recipient when choosing that type.
+
+PassArc checks the compressed data, then saves the archive after age successfully encrypts it to the listed recipients. Recipients can also decrypt the saved archive with `age --decrypt --identity <key-file>`.
+
 ## Choose an archive format
 
 | Format | Encryption method | File contents | File names inside the archive | When to use it |
 | --- | --- | --- | --- | --- |
 | **7z** (default) | AES-256 with a password | Encrypted | Encrypted | Share private files with a recipient who can open encrypted 7z archives. |
 | **ZIP** | AES-256 with a password | Encrypted | Visible | Choose a familiar format when the recipient has an app that supports AES-encrypted ZIP and the file names can be shared openly. |
-| **tar.zst.age** | age with a passphrase | Encrypted | Encrypted | Encrypt the entire Zstandard archive. The recipient needs PassArc with `age` and `zstd` installed or equivalent tools. |
+| **tar.zst.age** | age with a passphrase or public keys | Encrypted | Encrypted | Encrypt the entire Zstandard archive. The recipient needs PassArc with `age` and `zstd` installed or equivalent tools. |
 | **tar.zst** | None | Readable without a password | Visible | Use Zstandard for fast compression and extraction when encryption is unnecessary, such as when packaging public files. |
 
 The table shows what PassArc encrypts when password protection is enabled. Without it, 7z and ZIP leave both contents and file names readable. Use a strong, unique password or passphrase for encrypted archives. The archive’s own name remains visible in every format.

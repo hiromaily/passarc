@@ -27,6 +27,8 @@ Run these commands from the repository root.
 
 Start with the files and focused tests for the behavior you're changing.
 
+For archive features that use external tools, verify the create-and-extract workflow with the real tools early. When the feature accepts user input, also check that users can correct invalid input and retry.
+
 | Change | Start with | Focused test |
 | --- | --- | --- |
 | Password validation or available archive formats | `PasswordRules.swift`, `DialogState.swift` | `swift test --package-path Core --filter DialogStateTests` |

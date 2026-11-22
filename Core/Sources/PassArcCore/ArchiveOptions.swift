@@ -53,11 +53,16 @@ public struct ArchiveRequest: Sendable {
   public var format: ArchiveFormat
   public var level: CompressionLevel
   public var password: String?
+  public var ageRecipients: [String]
 
-  public init(items: [URL], format: ArchiveFormat, level: CompressionLevel, password: String?) {
+  public init(
+    items: [URL], format: ArchiveFormat, level: CompressionLevel, password: String?,
+    ageRecipients: [String] = []
+  ) {
     self.items = items
     self.format = format
     self.level = level
     self.password = password
+    self.ageRecipients = ageRecipients
   }
 }

@@ -6,6 +6,8 @@ import SwiftUI
 final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableObject {
   @Published private(set) var isExtracting = true
   @Published private(set) var needsPassword = false
+  @Published private(set) var canChooseIdentity = false
+  @Published private(set) var identityNeedingPassphrase: URL?
   @Published private(set) var message: String?
   var onClose: (() -> Void)?
   let archive: URL
@@ -34,13 +36,24 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
     extract()
   }
 
-  func extract(password: String? = nil) {
+  func chooseIdentity() {
+    let panel = NSOpenPanel()
+    panel.title = "Choose age Identity"
+    panel.prompt = "Extract"
+    panel.beginSheetModal(for: window) { [weak self] response in
+      guard response == .OK, let identity = panel.url else { return }
+      self?.extract(ageIdentity: identity)
+    }
+  }
+
+  func extract(password: String? = nil, ageIdentity: URL? = nil) {
     guard task == nil else { return }
+    let ageIdentity = ageIdentity ?? identityNeedingPassphrase
     isExtracting = true
     message = nil
     task = Task { [weak self, archive] in
       do {
-        let output = try await ExtractionJob(archive: archive, password: password).run()
+        let output = try await ExtractionJob(archive: archive, password: password, ageIdentity: ageIdentity).run()
         guard let self, !Task.isCancelled else { return }
         notifier.postCompleted(output, action: .extracted)
         notifier.playCompletionSound()
@@ -50,13 +63,31 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
         guard let self, !Task.isCancelled else { return }
         task = nil
         isExtracting = false
+        identityNeedingPassphrase = nil
         switch error {
+        case ExtractionError.ageIdentityPassphraseRequired, ExtractionError.incorrectAgeIdentityPassphrase,
+             ExtractionError.invalidPassphrase where ageIdentity != nil:
+          identityNeedingPassphrase = ageIdentity
+          needsPassword = true
+          canChooseIdentity = true
         case ExtractionError.passwordRequired, ExtractionError.incorrectPassword, ExtractionError.invalidPassphrase:
           needsPassword = true
+          canChooseIdentity = ExtractionJob.format(of: archive) == .tarZstAge
+        case ExtractionError.ageIdentityRequired:
+          needsPassword = false
+          canChooseIdentity = true
+        case ExtractionError.invalidAgeIdentity, ExtractionError.ageIdentityDecryptionFailed:
+          needsPassword = true
+          canChooseIdentity = true
         default:
           needsPassword = false
+          canChooseIdentity = false
         }
-        message = error.localizedDescription
+        if case ExtractionError.passwordRequired = error, canChooseIdentity {
+          message = "Enter the archive passphrase or choose an age identity file."
+        } else {
+          message = error.localizedDescription
+        }
       }
     }
   }
@@ -91,15 +122,18 @@ private struct ExtractionView: View {
       }
       if controller.needsPassword && !controller.isExtracting {
         SecureInputField(text: $password, onReturn: submit)
-          .accessibilityLabel("Archive password")
+          .accessibilityLabel(controller.identityNeedingPassphrase == nil ? "Archive password" : "SSH private key passphrase")
           .frame(height: 24)
       }
       HStack {
         Spacer()
-        Button(controller.isExtracting || controller.needsPassword ? "Cancel" : "Close") {
+        Button(controller.isExtracting || controller.needsPassword || controller.canChooseIdentity ? "Cancel" : "Close") {
           controller.close()
         }
         .keyboardShortcut(.cancelAction)
+        if controller.canChooseIdentity && !controller.isExtracting {
+          Button("Choose Identity…", action: controller.chooseIdentity)
+        }
         if controller.needsPassword && !controller.isExtracting {
           Button("Extract", action: submit)
             .keyboardShortcut(.defaultAction)

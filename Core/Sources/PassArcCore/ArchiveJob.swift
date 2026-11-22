@@ -157,26 +157,19 @@ public final class ArchiveJob: @unchecked Sendable {
         progress(.verifying)
         try await verify(tool: toolURL, partial: compressed, expectedFiles: inventory.fileCount)
       }
-      if isCancelled { throw ArchiveError.cancelled }
-
-      // Retry with a new name if another process took the destination.
-      var final = output
-      var occupied = Set<URL>()
-      while !isCancelled {
-        if renamex_np(partial.path, final.path, UInt32(RENAME_EXCL)) == 0 { return final }
-        let code = errno
-        guard code == EEXIST else {
-          let error = POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
-          throw ArchiveError.failed(error.localizedDescription)
-        }
-        occupied.insert(final)
-        final = Self.reserved.withLock { taken in
-          OutputNaming.outputURL(items: request.items, format: request.format) {
-            occupied.contains($0) || fm.fileExists(atPath: $0.path) || taken.contains($0.path)
+      do {
+        return try OutputNaming.finalize(partial, reservedDestination: output, checkCancellation: {
+          if isCancelled { throw ArchiveError.cancelled }
+        }) { occupied in
+          Self.reserved.withLock { taken in
+            OutputNaming.outputURL(items: request.items, format: request.format) {
+              occupied.contains($0) || fm.fileExists(atPath: $0.path) || taken.contains($0.path)
+            }
           }
         }
+      } catch let error as POSIXError {
+        throw ArchiveError.failed(error.localizedDescription)
       }
-      throw ArchiveError.cancelled
     } catch {
       setStop(nil)
       try? fm.removeItem(at: partial)

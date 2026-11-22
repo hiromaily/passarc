@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public enum OutputNaming {
@@ -25,5 +26,24 @@ public enum OutputNaming {
       n += 1
     }
     return candidate
+  }
+
+  static func finalize(
+    _ staged: URL, reservedDestination: URL? = nil,
+    checkCancellation: () throws -> Void,
+    nextDestination: (Set<URL>) -> URL
+  ) throws -> URL {
+    var destination = reservedDestination
+    var occupied = Set<URL>()
+    while true {
+      let candidate = destination ?? nextDestination(occupied)
+      try checkCancellation()
+      // An exclusive rename also detects destinations missed by fileExists, such as dangling symlinks.
+      if renamex_np(staged.path, candidate.path, UInt32(RENAME_EXCL)) == 0 { return candidate }
+      let code = errno
+      guard code == EEXIST else { throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO) }
+      occupied.insert(candidate)
+      destination = nil
+    }
   }
 }

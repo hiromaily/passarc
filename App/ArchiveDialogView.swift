@@ -38,6 +38,11 @@ struct ArchiveDialogView: View {
           label("Format")
           VStack(alignment: .leading, spacing: 6) {
             ForEach(ArchiveFormat.allCases, id: \.self) { f in
+              if f == .tarZst {
+                Divider()
+                  .frame(width: 100)
+                  .accessibilityHidden(true)
+              }
               RadioButton(
                 title: f.displayName, isOn: model.state.format == f,
                 isEnabled: model.state.isFormatEnabled(f)

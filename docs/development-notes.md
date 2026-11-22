@@ -79,6 +79,8 @@ environment where process arguments are visible.
 
 Build the app and use a macOS session where PassArcFinder is disabled. Open the built PassArc directly and check that it shows **Drop files or folders here** and **Enable Finder Extension…**.
 
+Before creating the test files, confirm that Finder and the PassArc launch window can be shown side by side on the same display and that you can drag between them. If your automation tool cannot drag across windows, use Finder directly in that macOS session.
+
 Run this block from the repository root. Leave it waiting in Terminal while you test in Finder.
 
 ```sh
@@ -99,7 +101,7 @@ Run this block from the repository root. Leave it waiting in Terminal while you 
 1. Arrange Finder and the PassArc launch window side by side so both are visible. Select `sample.txt` and `sample-folder` in Finder and drag them together onto PassArc. The drop area should highlight and one **Archive** dialog should open.
 2. Choose **7z**, clear **Protect with a password**, and click **Compress**. Check that `Archive.7z` appears next to the source items, then press Return in Terminal. The integrity check should pass and the listing should contain `sample.txt` and `sample-folder/nested.txt`. The temporary directory is removed when the block exits.
 
-If a UI automation tool cannot locate both windows on the same screen, perform the drag in Finder directly. Opening the launch window verifies startup. A successful drag and archive listing verify the full workflow.
+A successful drag, archive integrity check, and listing verify the full workflow.
 
 ### Open the archive dialog with a test selection
 

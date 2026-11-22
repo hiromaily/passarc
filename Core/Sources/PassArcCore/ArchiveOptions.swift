@@ -1,18 +1,47 @@
 import Foundation
 
 public enum ArchiveFormat: String, CaseIterable, Sendable, Codable {
-  case sevenZip, zip, tarZst
+  case sevenZip, zip, tarZst, tarZstAge
 
-  public var fileExtension: String {
-    switch self {
-    case .sevenZip: "7z"
-    case .zip: "zip"
-    case .tarZst: "tar.zst"
+  enum Payload {
+    case sevenZip, tarZst
+
+    var tool: Tool {
+      switch self {
+      case .sevenZip: .sevenZip
+      case .tarZst: .zstd
+      }
     }
   }
 
-  /// zstd has no password support
-  public var supportsPassword: Bool { self != .tarZst }
+  enum Encryption {
+    case sevenZipPassword, none, age
+
+    var passwordRules: (supported: Bool, required: Bool, maximumBytes: Int?) {
+      switch self {
+      case .sevenZipPassword: (true, false, nil)
+      case .none: (false, false, nil)
+      case .age: (true, true, AgeCommand.maximumPassphraseBytes)
+      }
+    }
+  }
+
+  private var configuration: (fileExtension: String, payload: Payload, encryption: Encryption) {
+    switch self {
+    case .sevenZip: ("7z", .sevenZip, .sevenZipPassword)
+    case .zip: ("zip", .sevenZip, .sevenZipPassword)
+    case .tarZst: ("tar.zst", .tarZst, .none)
+    case .tarZstAge: ("tar.zst.age", .tarZst, .age)
+    }
+  }
+
+  public var fileExtension: String { configuration.fileExtension }
+  var payload: Payload { configuration.payload }
+  var encryption: Encryption { configuration.encryption }
+
+  public var supportsPassword: Bool { encryption.passwordRules.supported }
+  public var requiresPassword: Bool { encryption.passwordRules.required }
+  var maximumPasswordBytes: Int? { encryption.passwordRules.maximumBytes }
 }
 
 public enum CompressionLevel: String, CaseIterable, Sendable, Codable {

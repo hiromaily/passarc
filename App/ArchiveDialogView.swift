@@ -209,15 +209,13 @@ extension ArchiveFormat {
       "Recipients may need an app that supports AES-256 encrypted ZIP archives."
     case .tarZst:
       nil
+    case .tarZstAge:
+      "age encrypts the entire archive, including file names. Recipients need an age-compatible tool and Zstandard."
     }
   }
 
   var displayName: String {
-    switch self {
-    case .sevenZip: "7z"
-    case .zip: "ZIP"
-    case .tarZst: "tar.zst"
-    }
+    self == .zip ? "ZIP" : fileExtension
   }
 }
 
@@ -242,6 +240,7 @@ struct ArchiveHelpView: View {
       Text("To open them, right-click the archive in Finder and choose Extract with PassArc.")
       Text("With 7z, file names are encrypted too, so nothing is visible without the password.")
       Text("tar.zst does not support passwords.")
+      Text("tar.zst.age encrypts contents and file names with a passphrase. Install age and Zstandard to open it in PassArc.")
     }
     .font(.callout)
     .fixedSize(horizontal: false, vertical: true)

@@ -40,6 +40,17 @@ import Testing
     #expect(state(usePassword: true).isFormatEnabled(.tarZst) == false)
     #expect(state(usePassword: false).isFormatEnabled(.tarZst))
     #expect(state(usePassword: true).isFormatEnabled(.zip))
+    #expect(state(usePassword: true).isFormatEnabled(.tarZstAge))
+    #expect(!state(usePassword: false).isFormatEnabled(.tarZstAge))
+  }
+
+  @Test func disablingPasswordSwitchesAgeToTarZst() {
+    var s = state(format: .tarZstAge, password: "secret", confirmation: "secret")
+    #expect(s.canSubmit)
+    s.setUsePassword(false)
+    #expect(s.format == .tarZst)
+    #expect(s.password.isEmpty)
+    #expect(s.canSubmit)
   }
 
   @Test func state_turningPasswordOnSwitchesFromTarZst() {

@@ -50,7 +50,7 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
         task = nil
         isExtracting = false
         switch error {
-        case ExtractionError.passwordRequired, ExtractionError.incorrectPassword:
+        case ExtractionError.passwordRequired, ExtractionError.incorrectPassword, ExtractionError.invalidPassphrase:
           needsPassword = true
         default:
           needsPassword = false

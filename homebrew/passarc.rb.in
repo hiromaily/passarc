@@ -9,7 +9,7 @@ cask "passarc" do
 
   depends_on arch: :arm64
   depends_on macos: :sequoia
-  depends_on formula: ["sevenzip", "zstd"]
+  depends_on formula: ["sevenzip", "zstd", "age"]
 
   app "PassArc.app"
 

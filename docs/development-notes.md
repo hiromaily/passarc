@@ -182,6 +182,21 @@ bundle that launches normally from Finder, run the command in an authorized macO
   `/bin/ps -ww -o args= -p $$` in the same execution environment. If process inspection is denied,
   rerun the test in an environment that lets it read its child process arguments.
 
+## Adding an archive format
+
+Define the extension, compression backend, and encryption together in `ArchiveFormat` in
+`Core/Sources/PassArcCore/ArchiveOptions.swift`. The extension also drives Finder extraction recognition.
+Keep password controls tied to the format's password policy. Compression and extraction select their
+backend separately from an outer encryption step such as age. Keep the compatibility note in
+`App/ArchiveDialogView.swift` and document any new executable in the Homebrew cask template and README.
+
+For a new format, exercise creation, verification, and extraction with the real tools. Check an incorrect
+passphrase, cancellation cleanup, and preservation of symbolic links where applicable. To test with a
+standalone age executable, run `PASSARC_TEST_AGE=/path/to/age swift test --package-path Core --filter ExtractionJobTests`.
+The [Core tests workflow](../.github/workflows/core-tests.yml) installs all three archive tools on macOS
+and sets `PASSARC_TEST_AGE` so the encrypted tar.zst round-trip runs on every pull request and push to main.
+Run the full Core suite and build both the app and Finder extension before checking the Finder menu.
+
 ## tar, zstd and files
 
 - **bsdtar reads `@name` as "add the entries of archive `name`"**, even after `--`. Names starting with `@` are

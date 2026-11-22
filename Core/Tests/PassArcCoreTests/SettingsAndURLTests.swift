@@ -53,8 +53,9 @@ import Testing
     #expect(ArchiveURL.parse(url)?.map(\.path) == items.map(\.path))
   }
 
-  @Test func extractionURL_roundTrip() {
-    let archive = URL(filePath: "/x/売上 + #.TAR.ZST")
+  @Test(arguments: ["TAR.ZST", "TAR.ZST.AGE"])
+  func extractionURL_roundTrip(suffix: String) {
+    let archive = URL(filePath: "/x/売上 + #.\(suffix)")
     let url = ArchiveURL.makeExtraction(item: archive)
     #expect(ArchiveURL.parseExtraction(url)?.path == archive.path)
     #expect(ArchiveURL.parse(url) == nil)

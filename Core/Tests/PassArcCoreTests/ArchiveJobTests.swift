@@ -99,6 +99,47 @@ import Testing
     #expect(try leftovers(in: dir).isEmpty)
   }
 
+  @Test func job_cancelDuringAgeRemovesStagingAndPartialArchive() async throws {
+    let (dir, projects) = try makeProjects()
+    let fm = FileManager.default
+    defer { try? fm.removeItem(at: dir) }
+    let age = dir.appending(path: "slow-age")
+    // AgeCommand passes --output and its path as the second and third arguments.
+    try TestSupport.write(
+      """
+      #!/bin/sh
+      set -eu
+      printf unfinished > "$3"
+      exec /bin/sleep 20
+      """,
+      to: age)
+    try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: age.path)
+    let job = ArchiveJob(
+      request: ArchiveRequest(items: [projects], format: .tarZstAge, level: .fast, password: "pw"),
+      locate: { $0 == .age ? age : ToolLocator.locate($0) })
+
+    let running = Task { try await job.run(progress: { _ in }) }
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(10)
+    var partialExists = false
+    while clock.now < deadline {
+      partialExists = (try? leftovers(in: dir))?.contains { name in
+        let staging = dir.appending(path: name)
+        return fm.fileExists(atPath: staging.appending(path: "encrypted.partial").path)
+      } ?? false
+      if partialExists { break }
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    #expect(partialExists)
+
+    let cancelledAt = clock.now
+    job.cancel()
+    await #expect(throws: ArchiveError.cancelled) { try await running.value }
+    #expect(clock.now - cancelledAt < .seconds(10))
+    #expect(try leftovers(in: dir).isEmpty)
+    #expect(!fm.fileExists(atPath: dir.appending(path: "projects.tar.zst.age").path))
+  }
+
   @Test func job_failsCleanlyInReadOnlyDirectory() async throws {
     let (dir, projects) = try makeProjects()
     try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: dir.path)

@@ -20,12 +20,13 @@ public struct DialogState: Equatable, Sendable {
     self.confirmation = confirmation
   }
 
-  /// Turning it on switches tar.zst to 7z. Turning it off clears the fields.
+  /// Switches to a compatible format and clears the fields when protection is disabled.
   public mutating func setUsePassword(_ on: Bool) {
     usePassword = on
     if on {
       if !format.supportsPassword { format = .sevenZip }
     } else {
+      if format.requiresPassword { format = .tarZst }
       password = ""
       confirmation = ""
       passwordFieldLeft = false
@@ -37,11 +38,11 @@ public struct DialogState: Equatable, Sendable {
   public mutating func didLeaveConfirmationField() { confirmationFieldLeft = true }
 
   public func isFormatEnabled(_ f: ArchiveFormat) -> Bool {
-    !usePassword || f.supportsPassword
+    usePassword ? f.supportsPassword : !f.requiresPassword
   }
 
   private var problem: PasswordProblem? {
-    usePassword ? PasswordRules.check(password, confirmation: confirmation) : nil
+    usePassword ? PasswordRules.check(password, confirmation: confirmation, format: format) : nil
   }
 
   public var canSubmit: Bool { isFormatEnabled(format) && problem == nil }
@@ -51,6 +52,7 @@ public struct DialogState: Equatable, Sendable {
     switch problem {
     case .nonASCII where passwordFieldLeft: PasswordProblem.nonASCII.message
     case .empty where passwordFieldLeft: PasswordProblem.empty.message
+    case .tooLong where passwordFieldLeft: PasswordProblem.tooLong.message
     case .mismatch where confirmationFieldLeft: PasswordProblem.mismatch.message
     default: nil
     }

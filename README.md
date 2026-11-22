@@ -19,10 +19,11 @@ Right-click in Finder or drop files into PassArc. Save the archive right next to
 | **Archive from Finder** | Right-click files or folders and choose **Archive with Password**. |
 | **Drag and drop** | Drop files or folders onto the PassArc window, even with the Finder extension disabled. |
 | **Encrypt with AES-256** | Protect 7z and ZIP archives with a password. Protected 7z archives also hide file names. |
+| **Encrypt with age** | Protect a tar.zst archive and its file names with a passphrase. |
 | **Generate and copy passwords** | Fill both password fields with a random 24-character password and copy it to share separately. |
 | **Check format compatibility** | See what the recipient will need to open the archive before you compress. |
 | **Compress folders individually** | Select several folders and save a separate archive next to each one in a single run. |
-| **Extract from Finder** | Open 7z, ZIP, and tar.zst archives with **Extract with PassArc**. Enter the password when prompted. |
+| **Extract from Finder** | Open 7z, ZIP, tar.zst, and tar.zst.age archives with **Extract with PassArc**. Enter the password when prompted. |
 | **Verify and share** | PassArc verifies each archive before giving it its final name. Use **Share** or **Show in Finder** in the completion window. You can also click the completion notification to reveal the result in Finder. |
 
 ## Install with Homebrew
@@ -34,7 +35,7 @@ brew install --cask hiromaily/tap/passarc
 ```
 
 > [!NOTE]
-> This README describes the features on `main`. The current Homebrew release, [v0.3.0](https://github.com/hiromaily/passarc/releases/tag/v0.3.0), includes Finder compression and extraction and password generation and copying. For the drag-and-drop window, format compatibility guidance, and separate archives for multiple folders, [build from source](#build-from-source).
+> This README describes the features on `main`. The current Homebrew release, [v0.3.0](https://github.com/hiromaily/passarc/releases/tag/v0.3.0), includes Finder compression and extraction and password generation and copying. For the drag-and-drop window, format compatibility guidance, separate archives for multiple folders, or tar.zst.age, [build from source](#build-from-source).
 
 The public build is ad hoc-signed. If macOS blocks the first launch, see [how to open PassArc](#macos-says-passarc-was-not-opened).
 
@@ -72,7 +73,7 @@ brew uninstall --cask hiromaily/tap/passarc
 
 ### Extract an archive
 
-Right-click a single `.7z`, `.zip`, or `.tar.zst` file in Finder and choose **Extract with PassArc**. If prompted, enter the password and click **Extract**. PassArc creates a folder beside the archive and reveals it in Finder.
+Right-click a single `.7z`, `.zip`, `.tar.zst`, or `.tar.zst.age` file in Finder and choose **Extract with PassArc**. If prompted, enter the password and click **Extract**. PassArc creates a folder beside the archive and reveals it in Finder.
 
 ## Choose an archive format
 
@@ -81,8 +82,9 @@ Right-click a single `.7z`, `.zip`, or `.tar.zst` file in Finder and choose **Ex
 | **7z** (default) | AES-256 for contents and file names | Keep file names private in a password-protected archive. |
 | **ZIP** | AES-256 for contents | Choose a familiar format when the recipient has an app that supports AES-encrypted ZIP. File names stay visible. |
 | **tar.zst** | Unavailable | Compress files with Zstandard when no password is needed. |
+| **tar.zst.age** | age passphrase encryption for contents and file names | Keep the entire Zstandard archive private. The recipient needs PassArc with `age` and `zstd` installed or equivalent tools. |
 
-Each format offers **Fast**, **Normal**, and **Maximum** compression. Recipients who use macOS can open encrypted archives with PassArc or another compatible app such as The Unarchiver.
+Each format offers **Fast**, **Normal**, and **Maximum** compression. Recipients who use macOS can open encrypted 7z and ZIP archives with PassArc or another compatible app such as The Unarchiver.
 
 ## Troubleshooting
 
@@ -105,7 +107,7 @@ Open **System Settings → Notifications → PassArc** and turn on **Allow Notif
 On Apple Silicon with macOS 15 or later, use Swift 6 and Xcode Command Line Tools with a macOS 15 or later SDK. Run these commands from the repository root.
 
 ```sh
-brew install sevenzip zstd
+brew install sevenzip zstd age
 scripts/build.sh --install
 swift test --package-path Core
 ```

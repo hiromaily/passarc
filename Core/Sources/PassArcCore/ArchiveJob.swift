@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Synchronization
 
@@ -61,8 +62,19 @@ public final class ArchiveJob: @unchecked Sendable {
 
   public func run(progress: @escaping @Sendable (JobPhase) -> Void) async throws -> URL {
     let fm = FileManager.default
-    let tool: Tool = request.format == .tarZst ? .zstd : .sevenZip
+    let tool = request.format.payload.tool
     guard let toolURL = locate(tool) else { throw ArchiveError.toolMissing(tool) }
+    let age: (executable: URL, password: String)?
+    switch request.format.encryption {
+    case .none, .sevenZipPassword:
+      age = nil
+    case .age:
+      guard let password = request.password,
+        PasswordRules.check(password, confirmation: password, format: request.format) == nil
+      else { throw ArchiveError.failed("Enter a valid passphrase for tar.zst.age.") }
+      guard let executable = locate(.age) else { throw ArchiveError.toolMissing(.age) }
+      age = (executable, password)
+    }
 
     let inventory: FileInventory
     do {
@@ -73,53 +85,80 @@ public final class ArchiveJob: @unchecked Sendable {
     // 7zz and tar run in the parent folder with bare names, so all items must share it
     let parents = Set(request.items.map { $0.deletingLastPathComponent().standardizedFileURL.path })
     guard parents.count == 1 else { throw ArchiveError.itemsInDifferentFolders }
+    let cwd = request.items[0].deletingLastPathComponent()
+    let names = request.items.map(\.lastPathComponent)
+    let staging = age.map { _ in
+      cwd.appending(path: ".passarc-\(UUID().uuidString).partial", directoryHint: .isDirectory)
+    }
 
     // Reserve the output and partial names so parallel jobs never pick the same ones
     let (output, partial) = Self.reserved.withLock { taken -> (URL, URL) in
-      let exists: (URL) -> Bool = { fm.fileExists(atPath: $0.path) || taken.contains($0.path) }
+      let exists: (URL) -> Bool = { [taken] in fm.fileExists(atPath: $0.path) || taken.contains($0.path) }
       let output = OutputNaming.outputURL(items: request.items, format: request.format, exists: exists)
-      let partial = OutputNaming.partialURL(for: output, exists: exists)
+      let partial = staging?.appending(path: "encrypted.partial")
+        ?? OutputNaming.partialURL(for: output, exists: exists)
       taken.insert(output.path)
       taken.insert(partial.path)
       return (output, partial)
     }
     defer { Self.reserved.withLock { $0.subtract([output.path, partial.path]) } }
-    let cwd = request.items[0].deletingLastPathComponent()
-    let names = request.items.map(\.lastPathComponent)
+    if let staging {
+      try fm.createDirectory(at: staging, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+    }
+    defer { if let staging { try? fm.removeItem(at: staging) } }
+    let compressed = staging?.appending(path: "archive.tar.zst") ?? partial
 
     do {
       if isCancelled { throw ArchiveError.cancelled }
       progress(.compressing(nil))
-      if request.format == .tarZst {
+      switch request.format.payload {
+      case .tarZst:
         try await compressTarZst(
-          zstd: toolURL, cwd: cwd, names: names, partial: partial,
+          zstd: toolURL, cwd: cwd, names: names, partial: compressed,
           totalBytes: inventory.totalBytes, progress: progress)
-      } else {
+      case .sevenZip:
         try await compressSevenZip(
           sevenZip: toolURL, cwd: cwd, names: names, partial: partial,
           excludedNames: inventory.excludedNames, progress: progress)
       }
+      if let age {
+        progress(.compressing(nil))
+        let result = try await run(AgeCommand.runner(
+          executable: age.executable, decrypt: false, input: compressed,
+          output: partial, password: age.password))
+        guard result.exitCode == 0 else { throw ArchiveError.failed("age encryption failed.") }
+        try fm.removeItem(at: compressed)
+      }
       if isCancelled { throw ArchiveError.cancelled }
 
       progress(.verifying)
-      try await verify(tool: toolURL, partial: partial, expectedFiles: inventory.fileCount)
+      if let age {
+        let result = try await run(AgeCommand.runner(
+          executable: age.executable, decrypt: true, input: partial,
+          output: compressed, password: age.password))
+        guard result.exitCode == 0 else { throw ArchiveError.verificationFailed }
+      }
+      try await verify(tool: toolURL, partial: compressed, expectedFiles: inventory.fileCount)
       if isCancelled { throw ArchiveError.cancelled }
 
-      // If a file took the name while compressing, pick a free name (never overwrite)
+      // Retry with a new name if another process took the destination.
       var final = output
-      if fm.fileExists(atPath: final.path) {
+      var occupied = Set<URL>()
+      while !isCancelled {
+        if renamex_np(partial.path, final.path, UInt32(RENAME_EXCL)) == 0 { return final }
+        let code = errno
+        guard code == EEXIST else {
+          let error = POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO)
+          throw ArchiveError.failed(error.localizedDescription)
+        }
+        occupied.insert(final)
         final = Self.reserved.withLock { taken in
           OutputNaming.outputURL(items: request.items, format: request.format) {
-            fm.fileExists(atPath: $0.path) || (taken.contains($0.path) && $0 != output)
+            occupied.contains($0) || fm.fileExists(atPath: $0.path) || taken.contains($0.path)
           }
         }
       }
-      do {
-        try fm.moveItem(at: partial, to: final)
-      } catch {
-        throw ArchiveError.failed(error.localizedDescription)
-      }
-      return final
+      throw ArchiveError.cancelled
     } catch {
       setStop(nil)
       try? fm.removeItem(at: partial)
@@ -231,26 +270,29 @@ public final class ArchiveJob: @unchecked Sendable {
 
   // MARK: - Verification
 
+  private func run(_ runner: PTYRunner) async throws -> PTYResult {
+    setStop { runner.terminate() }
+    defer { setStop(nil) }
+    return try await runner.run(onOutput: { _ in })
+  }
+
   private func verify(tool: URL, partial: URL, expectedFiles: Int) async throws {
-    if request.format == .tarZst {
+    switch request.format.payload {
+    case .tarZst:
       let runner = PTYRunner(
         executable: tool, arguments: CommandBuilder.zstdTest(archive: partial),
         currentDirectory: partial.deletingLastPathComponent(), password: nil)
-      setStop { runner.terminate() }
-      let result = try await runner.run(onOutput: { _ in })
-      setStop(nil)
+      let result = try await run(runner)
       if result.exitCode != 0 { throw ArchiveError.verificationFailed }
-      return
-    }
-    let runner = PTYRunner(
-      executable: tool, arguments: CommandBuilder.sevenZipTest(archive: partial),
-      currentDirectory: partial.deletingLastPathComponent(), password: request.password)
-    setStop { runner.terminate() }
-    let result = try await runner.run(onOutput: { _ in })
-    setStop(nil)
-    if isCancelled { throw ArchiveError.cancelled }
-    guard result.exitCode == 0, Self.testedFileCount(result.output) == expectedFiles else {
-      throw ArchiveError.verificationFailed
+    case .sevenZip:
+      let runner = PTYRunner(
+        executable: tool, arguments: CommandBuilder.sevenZipTest(archive: partial),
+        currentDirectory: partial.deletingLastPathComponent(), password: request.password)
+      let result = try await run(runner)
+      if isCancelled { throw ArchiveError.cancelled }
+      guard result.exitCode == 0, Self.testedFileCount(result.output) == expectedFiles else {
+        throw ArchiveError.verificationFailed
+      }
     }
   }
 

@@ -43,6 +43,7 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
         let output = try await ExtractionJob(archive: archive, password: password).run()
         guard let self, !Task.isCancelled else { return }
         notifier.postCompleted(output, action: .extracted)
+        notifier.playCompletionSound()
         NSWorkspace.shared.activateFileViewerSelecting([output])
         window.close()
       } catch {

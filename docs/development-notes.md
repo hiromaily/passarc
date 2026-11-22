@@ -127,6 +127,23 @@ second folder. Confirm that **Share** and **Show in Finder** target only the fir
 `.partial` files remain. If a restricted shell reports `kLSNoExecutableErr` for a signed
 bundle that launches normally from Finder, run the command in an authorized macOS session.
 
+## Verify the completion sound
+
+Build and launch PassArc in a macOS session with audible audio output. Enable PassArcFinder for the
+extraction check. Use disposable files and folders in a temporary directory as shown above.
+
+1. Compress one file. Confirm that its archive is saved and the completion sound plays once.
+2. Select two folders and enable **Create a separate archive for each folder**. Confirm that both archives
+   are saved and the sound plays once, after the second archive is saved.
+3. In Finder, choose **Extract with PassArc** for one of the new archives. Confirm that Finder reveals the
+   extracted output and the sound plays once.
+4. Run a batch with a small folder followed by a large one. Click **Stop** after the first archive is saved.
+   For the failure case, select a folder in the temporary directory and a second folder one level deeper
+   under a separate parent. PassArc processes the shallower selection first. Remove write permission
+   from the second folder's parent before starting, then restore it after the failure for cleanup.
+   Confirm that the first archive is still available in each case and that neither run plays the
+   completion sound.
+
 ## macOS app behaviour
 
 - **`NSApp.activate()` does not bring the window to the front** when launched from the extension: since macOS 14,

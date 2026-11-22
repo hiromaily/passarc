@@ -136,17 +136,10 @@ public struct ExtractionJob: Sendable {
 
     let basename = String(archive.lastPathComponent.dropLast(format.fileExtension.count + 1))
     let stem = basename.isEmpty || basename == "." || basename == ".." ? "Extracted Archive" : basename
-    var occupied = Set<URL>()
-    while true {
-      try Task.checkCancellation()
-      let destination = OutputNaming.firstFree(in: parent, stem: stem, suffix: "") {
+    return try OutputNaming.finalize(payload, checkCancellation: { try Task.checkCancellation() }) { occupied in
+      OutputNaming.firstFree(in: parent, stem: stem, suffix: "") {
         occupied.contains($0) || fm.fileExists(atPath: $0.path)
       }
-      // The exclusive rename also handles collisions with other apps and dangling symlinks.
-      if renamex_np(payload.path, destination.path, UInt32(RENAME_EXCL)) == 0 { return destination }
-      let code = errno
-      guard code == EEXIST else { throw POSIXError(POSIXErrorCode(rawValue: code) ?? .EIO) }
-      occupied.insert(destination)
     }
   }
 

@@ -46,11 +46,7 @@ final class ArchiveDialogModel {
 
   var usesPublicKeys: Bool { state.format == .tarZstAge && state.usePassword && useAgeRecipients }
 
-  private var ageRecipients: [String] {
-    ageRecipientText.split(whereSeparator: \.isNewline)
-      .map { $0.trimmingCharacters(in: .whitespaces) }
-      .filter { !$0.isEmpty && !$0.hasPrefix("#") }
-  }
+  private var ageRecipients: AgeRecipients { AgeRecipients(ageRecipientText) }
 
   var canSubmit: Bool {
     usesPublicKeys ? !ageRecipients.isEmpty : state.canSubmit
@@ -102,10 +98,12 @@ final class ArchiveDialogModel {
     let separately = canCompressSeparately && compressSeparately
     let format = state.format
     let level = state.level
-    let password = state.usePassword && !usesPublicKeys ? state.password : nil
-    let recipients = usesPublicKeys
-      ? ageRecipientText.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
-      : []
+    let protection: ArchiveProtection
+    if usesPublicKeys {
+      protection = .ageRecipients(ageRecipients)
+    } else {
+      protection = state.usePassword ? .password(state.password) : .none
+    }
     state.password = ""
     state.confirmation = ""
     recipientValidationMessage = nil
@@ -135,7 +133,7 @@ final class ArchiveDialogModel {
             currentFolder = "Folder \(index + 1) of \(groups.count) · \(group[0].lastPathComponent)"
           }
           let job = ArchiveJob(request: ArchiveRequest(
-            items: group, format: format, level: level, password: password, ageRecipients: recipients))
+            items: group, format: format, level: level, protection: protection))
           self.job = job
           phase = .running(.compressing(nil))
           let output = try await job.run { progress in

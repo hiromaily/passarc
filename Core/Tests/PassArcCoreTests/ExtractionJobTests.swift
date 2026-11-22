@@ -29,7 +29,7 @@ import Testing
     let source = dir.appending(path: "hello.txt")
     try TestSupport.write("hello", to: source)
     let compressed = try await ArchiveJob(
-      request: ArchiveRequest(items: [source], format: .tarZst, level: .fast, password: nil)
+      request: ArchiveRequest(items: [source], format: .tarZst, level: .fast)
     ).run(progress: { _ in })
     let identity = dir.appending(path: "my identity.txt")
     let otherIdentity = dir.appending(path: "other identity.txt")
@@ -95,7 +95,7 @@ import Testing
     let key = try String(contentsOf: identity.appendingPathExtension("pub"), encoding: .utf8)
       .trimmingCharacters(in: .newlines)
     let request = ArchiveRequest(
-      items: [source], format: .tarZstAge, level: .fast, password: nil, ageRecipients: ["# Recipients", "", key])
+      items: [source], format: .tarZstAge, level: .fast, protection: .ageRecipients(AgeRecipients("# Recipients\n\n" + key)))
     await #expect(throws: ArchiveError.invalidAgeRecipients("Line 3: age rejected this public key.")) {
       try await ArchiveJob(request: request) { $0 == .age ? age : ToolLocator.locate($0) }.run(progress: { _ in })
     }
@@ -132,7 +132,7 @@ import Testing
     }
     let locate: @Sendable (Tool) -> URL? = { $0 == .age ? age : ToolLocator.locate($0) }
     let archive = try await ArchiveJob(
-      request: ArchiveRequest(items: [source], format: .tarZstAge, level: .fast, password: nil, ageRecipients: recipients),
+      request: ArchiveRequest(items: [source], format: .tarZstAge, level: .fast, protection: .ageRecipients(AgeRecipients(recipients.joined(separator: "\n")))),
       locate: locate
     ).run(progress: { _ in })
     #expect(archive.lastPathComponent.hasSuffix(".tar.zst.age"))
@@ -173,7 +173,7 @@ import Testing
     try FileManager.default.createSymbolicLink(atPath: link.path, withDestinationPath: "folder/file.txt")
     let password = format.supportsPassword ? "test password" : nil
     let archive = try await ArchiveJob(
-      request: ArchiveRequest(items: [source], format: format, level: .fast, password: password),
+      request: ArchiveRequest(items: [source], format: format, level: .fast, protection: password.map(ArchiveProtection.password) ?? .none),
       locate: locate
     ).run(progress: { _ in })
     #expect(ExtractionJob.format(of: archive) == format)
@@ -217,7 +217,7 @@ import Testing
     let source = dir.appending(path: "hello.txt")
     try TestSupport.write("hello", to: source)
     let archive = try await ArchiveJob(
-      request: ArchiveRequest(items: [source], format: format, level: .fast, password: nil)
+      request: ArchiveRequest(items: [source], format: format, level: .fast)
     ).run(progress: { _ in })
     let extracted = try await ExtractionJob(archive: archive).run()
     #expect(try String(contentsOf: extracted.appending(path: "hello.txt"), encoding: .utf8) == "hello")
@@ -239,7 +239,7 @@ import Testing
     let source = dir.appending(path: "hello.txt")
     try TestSupport.write("hello", to: source)
     let archive = try await ArchiveJob(
-      request: ArchiveRequest(items: [source], format: .tarZst, level: .fast, password: nil)
+      request: ArchiveRequest(items: [source], format: .tarZst, level: .fast)
     ).run(progress: { _ in })
 
     let padding = dir.appending(path: "padding")

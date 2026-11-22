@@ -1,10 +1,12 @@
 import AppKit
 import PassArcCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ArchiveDialogView: View {
   @Bindable var model: ArchiveDialogModel
   @State private var showHelp = false
+  @State private var showRecipientFile = false
   private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
 
   var body: some View {
@@ -22,6 +24,12 @@ struct ArchiveDialogView: View {
     }
     .padding(20)
     .frame(minWidth: 380, maxWidth: 480)
+    .fileImporter(isPresented: $showRecipientFile, allowedContentTypes: [.item]) { result in
+      guard case .success(let url) = result else { return }
+      let scoped = url.startAccessingSecurityScopedResource()
+      defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+      model.importRecipients(from: url)
+    }
   }
 
   private var title: String {
@@ -78,12 +86,44 @@ struct ArchiveDialogView: View {
         GridRow {
           Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
           Toggle(
-            "Protect with a password",
+            model.state.format == .tarZstAge ? "Encrypt archive" : "Protect with a password",
             isOn: Binding(
               get: { model.state.usePassword },
               set: { model.state.setUsePassword($0) }))
         }
-        if model.state.usePassword {
+        if model.state.format == .tarZstAge && model.state.usePassword {
+          GridRow(alignment: .firstTextBaseline) {
+            label("Encryption")
+            Picker("Encryption", selection: $model.useAgeRecipients) {
+              Text("Passphrase").tag(false)
+              Text("Public keys").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+          }
+        }
+        if model.usesPublicKeys {
+          GridRow(alignment: .top) {
+            label("Recipients")
+            VStack(alignment: .leading, spacing: 6) {
+              TextEditor(text: $model.ageRecipientText)
+                .font(.system(.body, design: .monospaced))
+                .frame(height: 76)
+                .border(.quaternary)
+                .accessibilityLabel("Recipient public keys")
+              Text("Enter one age or SSH public key per line.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              Button("Import Recipient File…") { showRecipientFile = true }
+              if let message = model.recipientFileMessage {
+                Text(message).font(.caption).foregroundStyle(.red)
+              }
+              if let message = model.recipientValidationMessage {
+                Text(message).font(.caption).foregroundStyle(.red)
+              }
+            }
+          }
+        } else if model.state.usePassword {
           GridRow(alignment: .firstTextBaseline) {
             label("Password")
             SecureInputField(
@@ -133,7 +173,7 @@ struct ArchiveDialogView: View {
           .keyboardShortcut(.cancelAction)
         Button("Compress") { model.submit() }
           .keyboardShortcut(.defaultAction)
-          .disabled(!model.state.canSubmit)
+          .disabled(!model.canSubmit)
       }
     }
   }

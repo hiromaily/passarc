@@ -11,6 +11,7 @@ public enum ArchiveError: Error, Equatable, Sendable {
   case toolMissing(Tool)
   /// The tail of the tool's output
   case failed(String)
+  case invalidAgeRecipients(String)
   case verificationFailed
   case cancelled
   /// The selected items are in different folders (e.g. from Finder search results)
@@ -21,6 +22,7 @@ public enum ArchiveError: Error, Equatable, Sendable {
     case .toolMissing(let tool):
       "\(tool.rawValue) was not found. Install it in Terminal with: brew install \(tool.brewPackage)"
     case .failed(let detail): "Compression failed.\n\(detail)"
+    case .invalidAgeRecipients(let detail): detail
     case .verificationFailed: "The new archive failed verification."
     case .cancelled: "Cancelled."
     case .itemsInDifferentFolders: "Select items that are in the same folder."
@@ -30,6 +32,11 @@ public enum ArchiveError: Error, Equatable, Sendable {
 
 /// Compress, verify, then rename. On stop or failure, the partial file is deleted.
 public final class ArchiveJob: @unchecked Sendable {
+  private enum AgeProtection {
+    case passphrase(String)
+    case recipients([(line: Int, key: String)])
+  }
+
   private let request: ArchiveRequest
   private let locate: (Tool) -> URL?
   private let state = Mutex<(cancelled: Bool, stop: (@Sendable () -> Void)?)>((false, nil))
@@ -64,16 +71,43 @@ public final class ArchiveJob: @unchecked Sendable {
     let fm = FileManager.default
     let tool = request.format.payload.tool
     guard let toolURL = locate(tool) else { throw ArchiveError.toolMissing(tool) }
-    let age: (executable: URL, password: String)?
+    let age: (executable: URL, protection: AgeProtection)?
+    guard request.ageRecipients.isEmpty || request.format == .tarZstAge else {
+      throw ArchiveError.failed("Public keys require the tar.zst.age format.")
+    }
     switch request.format.encryption {
     case .none, .sevenZipPassword:
       age = nil
     case .age:
-      guard let password = request.password,
-            PasswordRules.check(password, confirmation: password, format: request.format) == nil
-      else { throw ArchiveError.failed("Enter a valid passphrase for tar.zst.age.") }
       guard let executable = locate(.age) else { throw ArchiveError.toolMissing(.age) }
-      age = (executable, password)
+      if request.ageRecipients.isEmpty {
+        guard let password = request.password,
+              PasswordRules.check(password, confirmation: password, format: request.format) == nil
+        else { throw ArchiveError.failed("Enter a valid passphrase for tar.zst.age.") }
+        age = (executable, .passphrase(password))
+      } else {
+        guard request.password == nil else {
+          throw ArchiveError.invalidAgeRecipients("Choose public keys or a passphrase.")
+        }
+        var keys: [(line: Int, key: String)] = []
+        for (index, value) in request.ageRecipients.enumerated() {
+          let line = value.trimmingCharacters(in: .whitespaces)
+          if line.isEmpty || line.hasPrefix("#") { continue }
+          guard let key = AgeCommand.recipientKey(line) else {
+            throw ArchiveError.invalidAgeRecipients("Line \(index + 1): Enter a valid age, ssh-ed25519, or ssh-rsa public key.")
+          }
+          keys.append((index + 1, key))
+        }
+        guard let firstKey = keys.first else {
+          throw ArchiveError.invalidAgeRecipients("Enter at least one recipient public key.")
+        }
+        let isPostQuantum = firstKey.key.hasPrefix("age1pq1")
+        if let mixed = keys.first(where: { $0.key.hasPrefix("age1pq1") != isPostQuantum }) {
+          throw ArchiveError.invalidAgeRecipients(
+            "Line \(mixed.line): Use either post-quantum age keys or classic age and SSH keys for all recipients.")
+        }
+        age = (executable, .recipients(keys))
+      }
     }
 
     let inventory: FileInventory
@@ -121,24 +155,26 @@ public final class ArchiveJob: @unchecked Sendable {
           sevenZip: toolURL, cwd: cwd, names: names, partial: partial,
           excludedNames: inventory.excludedNames, progress: progress)
       }
-      if let age {
-        progress(.compressing(nil))
-        let result = try await run(AgeCommand.runner(
-          executable: age.executable, decrypt: false, input: compressed,
-          output: partial, password: age.password))
-        guard result.exitCode == 0 else { throw ArchiveError.failed("age encryption failed.") }
-        try fm.removeItem(at: compressed)
-      }
       if isCancelled { throw ArchiveError.cancelled }
-
-      progress(.verifying)
       if let age {
-        let result = try await run(AgeCommand.runner(
-          executable: age.executable, decrypt: true, input: partial,
-          output: compressed, password: age.password))
-        guard result.exitCode == 0 else { throw ArchiveError.verificationFailed }
+        switch age.protection {
+        case .recipients(let recipients):
+          progress(.verifying)
+          try await verify(tool: toolURL, partial: compressed, expectedFiles: inventory.fileCount)
+          if isCancelled { throw ArchiveError.cancelled }
+          progress(.compressing(nil))
+          try await encryptForRecipients(
+            executable: age.executable, recipients: recipients, compressed: compressed, partial: partial)
+        case .passphrase(let password):
+          try await encryptAndCheckAge(
+            executable: age.executable, password: password, compressed: compressed, partial: partial,
+            progress: progress)
+          try await verify(tool: toolURL, partial: compressed, expectedFiles: inventory.fileCount)
+        }
+      } else {
+        progress(.verifying)
+        try await verify(tool: toolURL, partial: compressed, expectedFiles: inventory.fileCount)
       }
-      try await verify(tool: toolURL, partial: compressed, expectedFiles: inventory.fileCount)
       if isCancelled { throw ArchiveError.cancelled }
 
       // Retry with a new name if another process took the destination.
@@ -165,6 +201,39 @@ public final class ArchiveJob: @unchecked Sendable {
       if isCancelled { throw ArchiveError.cancelled }
       throw error
     }
+  }
+
+  private func encryptForRecipients(
+    executable: URL, recipients: [(line: Int, key: String)], compressed: URL, partial: URL
+  ) async throws {
+    // Unlike --recipients-file, --recipient fails for unsupported SSH keys instead of skipping them.
+    let result = try await run(AgeCommand.recipientRunner(
+      executable: executable, input: compressed, output: partial, recipients: recipients.map(\.key)))
+    guard result.exitCode != 0 else { return }
+    if result.output.contains("malformed recipient") || result.output.contains("malformed SSH recipient")
+      || result.output.contains("unknown recipient type") {
+      if let recipient = recipients.first(where: { result.output.contains("\"\($0.key)\"") }) {
+        throw ArchiveError.invalidAgeRecipients("Line \(recipient.line): age rejected this public key.")
+      }
+      throw ArchiveError.invalidAgeRecipients("age rejected a recipient public key. Check the keys and the installed age version.")
+    }
+    throw ArchiveError.failed("age could not encrypt the archive.")
+  }
+
+  private func encryptAndCheckAge(
+    executable: URL, password: String, compressed: URL, partial: URL,
+    progress: @escaping @Sendable (JobPhase) -> Void
+  ) async throws {
+    progress(.compressing(nil))
+    let encrypted = try await run(AgeCommand.runner(
+      executable: executable, decrypt: false, input: compressed, output: partial, password: password))
+    guard encrypted.exitCode == 0 else { throw ArchiveError.failed("age encryption failed.") }
+    try FileManager.default.removeItem(at: compressed)
+    if isCancelled { throw ArchiveError.cancelled }
+    progress(.verifying)
+    let verified = try await run(AgeCommand.runner(
+      executable: executable, decrypt: true, input: partial, output: compressed, password: password))
+    guard verified.exitCode == 0 else { throw ArchiveError.verificationFailed }
   }
 
   // MARK: - 7z / ZIP

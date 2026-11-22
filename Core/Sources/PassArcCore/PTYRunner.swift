@@ -19,13 +19,14 @@ public final class PTYRunner: @unchecked Sendable {
   private let currentDirectory: URL
   private let environment: [String: String]?
   private let password: String?
+  private let useTerminal: Bool
   private let prompt: @Sendable (String) -> Bool
   private let process = Process()
   private let stopped = Mutex(false)
 
   public init(
     executable: URL, arguments: [String], currentDirectory: URL,
-    environment: [String: String]? = nil, password: String?,
+    environment: [String: String]? = nil, password: String?, useTerminal: Bool = true,
     prompt: (@Sendable (String) -> Bool)? = nil
   ) {
     self.executable = executable
@@ -33,6 +34,7 @@ public final class PTYRunner: @unchecked Sendable {
     self.currentDirectory = currentDirectory
     self.environment = environment
     self.password = password
+    self.useTerminal = useTerminal
     self.prompt = prompt ?? Self.isPasswordPrompt
   }
 
@@ -47,6 +49,21 @@ public final class PTYRunner: @unchecked Sendable {
 
   /// Writes the password followed by a newline when the configured prompt appears.
   public func run(onOutput: @escaping @Sendable (String) -> Void) async throws -> PTYResult {
+    process.executableURL = executable
+    process.arguments = arguments
+    process.currentDirectoryURL = currentDirectory
+    if let environment {
+      process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
+    }
+    if !useTerminal {
+      let output = Pipe()
+      process.standardInput = FileHandle.nullDevice
+      process.standardOutput = output
+      process.standardError = output
+      try launch()
+      return await readOutput(output.fileHandleForReading, password: nil, onOutput: onOutput)
+    }
+
     var master: Int32 = -1
     var slave: Int32 = -1
     guard openpty(&master, &slave, nil, nil, nil) == 0 else {
@@ -65,21 +82,12 @@ public final class PTYRunner: @unchecked Sendable {
     tcsetattr(slave, TCSANOW, &attrs)
 
     let slaveHandle = FileHandle(fileDescriptor: slave, closeOnDealloc: false)
-    process.executableURL = executable
-    process.arguments = arguments
-    process.currentDirectoryURL = currentDirectory
-    if let environment {
-      process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
-    }
     process.standardInput = slaveHandle
     process.standardOutput = slaveHandle
     process.standardError = slaveHandle
 
     do {
-      try stopped.withLock { stopped in
-        if stopped { throw CancellationError() }
-        try self.process.run()
-      }
+      try launch()
     } catch {
       close(master)
       close(slave)
@@ -87,12 +95,25 @@ public final class PTYRunner: @unchecked Sendable {
     }
     close(slave)
 
-    let masterFD = master
+    let handle = FileHandle(fileDescriptor: master, closeOnDealloc: true)
+    return await readOutput(handle, password: password, onOutput: onOutput)
+  }
+
+  private func launch() throws {
+    try stopped.withLock { stopped in
+      if stopped { throw CancellationError() }
+      try process.run()
+    }
+  }
+
+  private func readOutput(
+    _ handle: FileHandle, password: String?, onOutput: @escaping @Sendable (String) -> Void
+  ) async -> PTYResult {
     let process = self.process
-    let password = self.password
     let prompt = self.prompt
     return await withCheckedContinuation { continuation in
       let thread = Thread {
+        let masterFD = handle.fileDescriptor
         var all = Data()
         var pending = ""
         var buffer = [UInt8](repeating: 0, count: 4096)
@@ -121,7 +142,7 @@ public final class PTYRunner: @unchecked Sendable {
             break // EOF, or the child closed the terminal (EIO)
           }
         }
-        close(masterFD)
+        try? handle.close()
         process.waitUntilExit()
         let output = String(decoding: all, as: UTF8.self)
           .replacingOccurrences(of: "\r\n", with: "\n")

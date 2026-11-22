@@ -8,6 +8,11 @@ public enum ExtractionError: LocalizedError, Equatable, Sendable {
   case passwordRequired
   case incorrectPassword
   case invalidPassphrase
+  case invalidAgeIdentity
+  case ageIdentityRequired
+  case ageIdentityPassphraseRequired
+  case incorrectAgeIdentityPassphrase
+  case ageIdentityDecryptionFailed
   case failed(String)
 
   public var errorDescription: String? {
@@ -17,6 +22,11 @@ public enum ExtractionError: LocalizedError, Equatable, Sendable {
     case .passwordRequired: "Enter the archive password."
     case .incorrectPassword: "Incorrect password. Try again."
     case .invalidPassphrase: "Enter a passphrase of at most 1023 UTF-8 bytes without control characters."
+    case .invalidAgeIdentity: "Choose an age or SSH private key file."
+    case .ageIdentityRequired: "Choose the age identity file for this archive."
+    case .ageIdentityPassphraseRequired: "Enter the passphrase for the SSH private key."
+    case .incorrectAgeIdentityPassphrase: "Incorrect SSH private key passphrase. Try again."
+    case .ageIdentityDecryptionFailed: "Could not decrypt this archive with the selected age identity."
     case .failed(let detail): "Extraction failed.\n\(detail)"
     }
   }
@@ -25,14 +35,16 @@ public enum ExtractionError: LocalizedError, Equatable, Sendable {
 public struct ExtractionJob: Sendable {
   private let archive: URL
   private let password: String?
+  private let ageIdentity: URL?
   private let locate: @Sendable (Tool) -> URL?
 
   public init(
-    archive: URL, password: String? = nil,
+    archive: URL, password: String? = nil, ageIdentity: URL? = nil,
     locate: @escaping @Sendable (Tool) -> URL? = { ToolLocator.locate($0) }
   ) {
     self.archive = archive
     self.password = password
+    self.ageIdentity = ageIdentity
     self.locate = locate
   }
 
@@ -47,17 +59,25 @@ public struct ExtractionJob: Sendable {
     else { throw ExtractionError.unsupportedArchive }
     let tool = format.payload.tool
     guard let executable = locate(tool) else { throw ExtractionError.toolMissing(tool) }
-    let age: (executable: URL, password: String)?
+    let age: URL?
     switch format.encryption {
     case .none, .sevenZipPassword:
       age = nil
     case .age:
       guard let executable = locate(.age) else { throw ExtractionError.toolMissing(.age) }
-      guard let password, !password.isEmpty else { throw ExtractionError.passwordRequired }
-      guard password.utf8.count <= AgeCommand.maximumPassphraseBytes,
-            password.utf8.allSatisfy({ $0 >= 0x20 && $0 != 0x7F })
-      else { throw ExtractionError.invalidPassphrase }
-      age = (executable, password)
+      if let ageIdentity {
+        guard (try? AgeCommand.isSupportedIdentityFile(ageIdentity)) == true else {
+          throw ExtractionError.invalidAgeIdentity
+        }
+      } else {
+        guard let password, !password.isEmpty else { throw ExtractionError.passwordRequired }
+      }
+      if let password {
+        guard password.utf8.count <= AgeCommand.maximumPassphraseBytes,
+              password.utf8.allSatisfy({ $0 >= 0x20 && $0 != 0x7F })
+        else { throw ExtractionError.invalidPassphrase }
+      }
+      age = executable
     }
 
     try Task.checkCancellation()
@@ -72,10 +92,26 @@ public struct ExtractionJob: Sendable {
     var compressed = archive
     if let age {
       compressed = staging.appending(path: "archive.tar.zst")
-      let result = try await run(AgeCommand.runner(
-        executable: age.executable, decrypt: true, input: archive,
-        output: compressed, password: age.password))
+      let runner: PTYRunner
+      if let ageIdentity {
+        runner = AgeCommand.identityRunner(
+          executable: age, input: archive, output: compressed, identity: ageIdentity, passphrase: password)
+      } else {
+        runner = AgeCommand.runner(
+          executable: age, decrypt: true, input: archive, output: compressed, password: password ?? "")
+      }
+      let result = try await run(runner)
       if result.exitCode != 0 {
+        if ageIdentity != nil {
+          if result.output.split(whereSeparator: \.isNewline).contains(where: AgeCommand.isIdentityPassphrasePrompt) {
+            if password?.isEmpty != false { throw ExtractionError.ageIdentityPassphraseRequired }
+            if result.output.contains("incorrect passphrase") || result.output.contains("decryption password incorrect") {
+              throw ExtractionError.incorrectAgeIdentityPassphrase
+            }
+          }
+          throw ExtractionError.ageIdentityDecryptionFailed
+        }
+        if result.output.contains("identities are required") { throw ExtractionError.ageIdentityRequired }
         if result.output.contains("incorrect passphrase") { throw ExtractionError.incorrectPassword }
         throw ExtractionError.failed("age could not decrypt this archive with a passphrase.")
       }

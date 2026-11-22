@@ -20,6 +20,147 @@ import Testing
   private static let ageExecutable = ProcessInfo.processInfo.environment["PASSARC_TEST_AGE"]
     .map { URL(filePath: $0) } ?? ToolLocator.locate(.age)
 
+  @Test(.enabled(if: ageKeygen != nil, "Install age-keygen to exercise native age identities"))
+  func extractsPublicKeyEncryptedTarZst() async throws {
+    let age = try #require(Self.ageExecutable)
+    let keygen = try #require(Self.ageKeygen)
+    let dir = try TestSupport.makeTempDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let source = dir.appending(path: "hello.txt")
+    try TestSupport.write("hello", to: source)
+    let compressed = try await ArchiveJob(
+      request: ArchiveRequest(items: [source], format: .tarZst, level: .fast, password: nil)
+    ).run(progress: { _ in })
+    let identity = dir.appending(path: "my identity.txt")
+    let otherIdentity = dir.appending(path: "other identity.txt")
+    for key in [identity, otherIdentity] {
+      let (status, _) = try TestSupport.run(keygen, ["-o", key.path])
+      try #require(status == 0)
+    }
+    let (keyStatus, recipient) = try TestSupport.run(keygen, ["-y", identity.path])
+    try #require(keyStatus == 0)
+    let archive = dir.appending(path: "encrypted.tar.zst.age")
+    let (encryptStatus, _) = try TestSupport.run(age, [
+      "-r", recipient.trimmingCharacters(in: .newlines), "-o", archive.path, "--", compressed.path,
+    ])
+    try #require(encryptStatus == 0)
+    let locate: @Sendable (Tool) -> URL? = { $0 == .age ? age : ToolLocator.locate($0) }
+
+    await #expect(throws: ExtractionError.invalidAgeIdentity) {
+      try await ExtractionJob(archive: archive, ageIdentity: source, locate: locate).run()
+    }
+    await #expect(throws: ExtractionError.ageIdentityDecryptionFailed) {
+      try await ExtractionJob(archive: archive, ageIdentity: otherIdentity, locate: locate).run()
+    }
+    #expect(!FileManager.default.fileExists(atPath: dir.appending(path: "encrypted").path))
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).allSatisfy { !$0.hasSuffix(".partial") })
+
+    let extracted = try await ExtractionJob(archive: archive, ageIdentity: identity, locate: locate).run()
+    #expect(try String(contentsOf: extracted.appending(path: "hello.txt"), encoding: .utf8) == "hello")
+  }
+
+  private static var ageKeygen: URL? {
+    guard let ageExecutable else { return nil }
+    let keygen = ageExecutable.deletingLastPathComponent().appending(path: "age-keygen")
+    return FileManager.default.isExecutableFile(atPath: keygen.path) ? keygen : nil
+  }
+
+  @Test(.enabled(if: ageKeygen != nil, "Install age to exercise public-key archive creation"))
+  func createsArchiveForMultiplePublicKeyRecipients() async throws {
+    try await checkRecipientRoundTrip(postQuantum: false)
+  }
+
+  @Test(.enabled(if: supportsPostQuantumKeys, "Install age with post-quantum key support"))
+  func createsArchiveForPostQuantumRecipients() async throws {
+    try await checkRecipientRoundTrip(postQuantum: true)
+  }
+
+  private static var supportsPostQuantumKeys: Bool {
+    guard let ageKeygen, let (_, help) = try? TestSupport.run(ageKeygen, ["--help"]) else { return false }
+    return help.contains("-pq")
+  }
+
+  @Test(.enabled(if: ageKeygen != nil, "Install age to exercise public-key archive creation"))
+  func rejectsAnUnsupportedSSHKeyWithoutPublishingAnArchive() async throws {
+    let age = try #require(Self.ageExecutable)
+    let dir = try TestSupport.makeTempDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let source = dir.appending(path: "confidential.txt")
+    try TestSupport.write("original contents", to: source)
+    let identity = dir.appending(path: "short-rsa")
+    let (status, _) = try TestSupport.run(URL(filePath: "/usr/bin/ssh-keygen"), [
+      "-q", "-t", "rsa", "-b", "1024", "-N", "", "-f", identity.path,
+    ])
+    try #require(status == 0)
+    let key = try String(contentsOf: identity.appendingPathExtension("pub"), encoding: .utf8)
+      .trimmingCharacters(in: .newlines)
+    let request = ArchiveRequest(
+      items: [source], format: .tarZstAge, level: .fast, password: nil, ageRecipients: ["# Recipients", "", key])
+    await #expect(throws: ArchiveError.invalidAgeRecipients("Line 3: age rejected this public key.")) {
+      try await ArchiveJob(request: request) { $0 == .age ? age : ToolLocator.locate($0) }.run(progress: { _ in })
+    }
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted() == [
+      "confidential.txt", "short-rsa", "short-rsa.pub",
+    ])
+  }
+
+  private func checkRecipientRoundTrip(postQuantum: Bool) async throws {
+    let age = try #require(Self.ageExecutable)
+    let keygen = try #require(Self.ageKeygen)
+    let dir = try TestSupport.makeTempDir()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let source = dir.appending(path: "confidential.txt")
+    try TestSupport.write("original contents", to: source)
+    var identities = [dir.appending(path: "first.txt"), dir.appending(path: "second.txt")]
+    var recipients = try identities.map { identity in
+      let (status, _) = try TestSupport.run(keygen, (postQuantum ? ["-pq"] : []) + ["-o", identity.path])
+      try #require(status == 0)
+      let (publicStatus, publicKey) = try TestSupport.run(keygen, ["-y", identity.path])
+      try #require(publicStatus == 0)
+      return publicKey.trimmingCharacters(in: .newlines)
+    }
+    let sshPassphrase = "test SSH passphrase"
+    let sshIdentity = dir.appending(path: "ssh")
+    if !postQuantum {
+      let (status, _) = try TestSupport.run(URL(filePath: "/usr/bin/ssh-keygen"), [
+        "-q", "-t", "ed25519", "-N", sshPassphrase, "-C", "受信者", "-f", sshIdentity.path,
+      ])
+      try #require(status == 0)
+      let publicKey = try String(contentsOf: sshIdentity.appendingPathExtension("pub"), encoding: .utf8)
+      recipients.append(publicKey.trimmingCharacters(in: .newlines))
+      identities.append(sshIdentity)
+    }
+    let locate: @Sendable (Tool) -> URL? = { $0 == .age ? age : ToolLocator.locate($0) }
+    let archive = try await ArchiveJob(
+      request: ArchiveRequest(items: [source], format: .tarZstAge, level: .fast, password: nil, ageRecipients: recipients),
+      locate: locate
+    ).run(progress: { _ in })
+    #expect(archive.lastPathComponent.hasSuffix(".tar.zst.age"))
+    let bytes = try Data(contentsOf: archive)
+    let headerEnd = try #require(bytes.range(of: Data("\n--- ".utf8))).lowerBound
+    let header = String(decoding: bytes.prefix(upTo: headerEnd), as: UTF8.self)
+    #expect(header.split(separator: "\n").filter { $0.hasPrefix("-> ") }.count == recipients.count)
+    if !postQuantum {
+      await #expect(throws: ExtractionError.ageIdentityPassphraseRequired) {
+        try await ExtractionJob(archive: archive, ageIdentity: sshIdentity, locate: locate).run()
+      }
+      await #expect(throws: ExtractionError.incorrectAgeIdentityPassphrase) {
+        try await ExtractionJob(archive: archive, password: "wrong", ageIdentity: sshIdentity, locate: locate).run()
+      }
+    }
+    for identity in identities {
+      let extracted = try await ExtractionJob(
+        archive: archive, password: identity == sshIdentity ? sshPassphrase : nil,
+        ageIdentity: identity, locate: locate
+      ).run()
+      #expect(try String(contentsOf: extracted.appending(path: "confidential.txt"), encoding: .utf8) == "original contents")
+    }
+    let compressed = dir.appending(path: "cli.tar.zst")
+    let (status, _) = try TestSupport.run(age, ["-d", "-i", identities[0].path, "-o", compressed.path, "--", archive.path])
+    #expect(status == 0)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).allSatisfy { !$0.hasSuffix(".partial") })
+  }
+
   private func checkRoundTrip(
     format: ArchiveFormat, locate: @escaping @Sendable (Tool) -> URL? = { ToolLocator.locate($0) }
   ) async throws {

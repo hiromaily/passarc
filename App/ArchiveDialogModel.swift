@@ -28,7 +28,7 @@ final class ArchiveDialogModel {
 
   init(items: [URL], notifier: Notifier) {
     self.items = items
-    canCompressSeparately = items.count > 1 && items.allSatisfy { item in
+    canCompressSeparately = !items.isEmpty && items.allSatisfy { item in
       let values = try? item.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
       return values?.isDirectory == true && values?.isSymbolicLink == false
     }
@@ -66,11 +66,6 @@ final class ArchiveDialogModel {
     guard state.canSubmit, phase == .editing else { return }
     settings.save(state)
     let separately = canCompressSeparately && compressSeparately
-    // Archive ancestors first so they don't include newly created archives of selected descendants.
-    let groups = separately
-      ? items.map { ($0, $0.resolvingSymlinksInPath().pathComponents.count) }
-        .sorted { $0.1 < $1.1 }.map { [$0.0] }
-      : [items]
     let format = state.format
     let level = state.level
     let password = state.usePassword ? state.password : nil
@@ -81,6 +76,21 @@ final class ArchiveDialogModel {
     Task {
       var outputs: [URL] = []
       do {
+        let groups: [[URL]]
+        if separately && items.count == 1 {
+          let subfolders = try FileInventory.immediateSubfolders(of: items[0])
+          guard !subfolders.isEmpty else {
+            phase = .failed("The selected folder contains no subfolders to compress.", saved: [])
+            return
+          }
+          groups = subfolders.map { [$0] }
+        } else if separately {
+          // Archive ancestors before creating any archives of their selected descendants.
+          groups = items.map { ($0, $0.resolvingSymlinksInPath().pathComponents.count) }
+            .sorted { $0.1 < $1.1 }.map { [$0.0] }
+        } else {
+          groups = [items]
+        }
         for (index, group) in groups.enumerated() {
           if stopRequested { throw ArchiveError.cancelled }
           if separately {

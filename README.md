@@ -1,7 +1,8 @@
 <h1 align="center">PassArc</h1>
 
-<p align="center"><strong>Password-protected archives for macOS.</strong><br>
-Right-click in Finder or drop files into PassArc. Save the archive right next to the originals.</p>
+<p align="center"><strong>Create encrypted archives right from Finder.</strong><br>
+Protect 7z and ZIP archives with AES-256 password encryption, or encrypt tar.zst archives with age using a passphrase or recipient public keys. Encrypted 7z and tar.zst.age archives also keep file names private.<br>
+Right-click in Finder or drop files into PassArc to save the archive beside the originals.</p>
 
 <p align="center">
   <a href="#install-with-homebrew">Install</a> ·

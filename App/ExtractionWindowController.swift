@@ -8,6 +8,7 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
   @Published private(set) var needsPassword = false
   @Published private(set) var canChooseIdentity = false
   @Published private(set) var defaultIdentity: URL?
+  @Published private(set) var chosenIdentity: URL?
   @Published private(set) var identityNeedingPassphrase: URL?
   @Published private(set) var message: String?
   var onClose: (() -> Void)?
@@ -40,16 +41,17 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
   func chooseIdentity() {
     let panel = NSOpenPanel()
     panel.title = "Choose age Identity"
-    panel.prompt = "Extract"
+    panel.prompt = "Choose"
     panel.beginSheetModal(for: window) { [weak self] response in
-      guard response == .OK, let identity = panel.url else { return }
-      self?.extract(ageIdentity: identity)
+      guard let self, response == .OK, let identity = panel.url else { return }
+      chosenIdentity = identity
+      identityNeedingPassphrase = nil
+      message = nil
     }
   }
 
   func extract(password: String? = nil, ageIdentity: URL? = nil) {
     guard task == nil else { return }
-    let ageIdentity = ageIdentity ?? identityNeedingPassphrase
     isExtracting = true
     message = nil
     task = Task { [weak self, archive] in
@@ -93,9 +95,10 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
             defaultIdentity = identity
           }
         }
-        if case ExtractionError.passwordRequired = error, canChooseIdentity {
-          message = "Enter the archive passphrase or choose an age identity file."
-        } else {
+        switch error {
+        case ExtractionError.passwordRequired where canChooseIdentity, ExtractionError.ageIdentityRequired:
+          message = nil
+        default:
           message = error.localizedDescription
         }
       }
@@ -115,9 +118,28 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
 }
 
 private struct ExtractionView: View {
+  private enum Method {
+    case identity, passphrase
+  }
+
   @ObservedObject var controller: ExtractionWindowController
   @State private var password = ""
+  @State private var chosenMethod: Method?
   @State private var showIdentityHelp = false
+
+  private var identity: URL? {
+    controller.identityNeedingPassphrase ?? controller.chosenIdentity ?? controller.defaultIdentity
+  }
+
+  private var method: Method {
+    guard controller.canChooseIdentity else { return .passphrase }
+    if !controller.needsPassword { return .identity }
+    return chosenMethod ?? (identity == nil ? .passphrase : .identity)
+  }
+
+  private var showsPassword: Bool {
+    method == .passphrase ? controller.needsPassword : controller.identityNeedingPassphrase != nil
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -131,14 +153,20 @@ private struct ExtractionView: View {
       if let message = controller.message {
         Text(message).textSelection(.enabled)
       }
-      if controller.needsPassword && !controller.isExtracting {
-        SecureInputField(text: $password, onReturn: submit)
-          .accessibilityLabel(controller.identityNeedingPassphrase == nil ? "Archive password" : "SSH private key passphrase")
-          .frame(height: 24)
-      }
-      if let identity = controller.defaultIdentity, !controller.isExtracting {
-        Button("Extract with Default Identity") { controller.extract(ageIdentity: identity) }
-          .help(identity.path)
+      if !controller.isExtracting {
+        if controller.canChooseIdentity {
+          credentialMethod
+          if method == .identity { identityPicker }
+        }
+        if showsPassword {
+          let label = method == .identity ? "SSH key passphrase" : "Archive passphrase"
+          VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+            SecureInputField(text: $password, onReturn: submit)
+              .accessibilityLabel(label)
+              .frame(height: 24)
+          }
+        }
       }
       HStack {
         Spacer()
@@ -146,36 +174,78 @@ private struct ExtractionView: View {
           controller.close()
         }
         .keyboardShortcut(.cancelAction)
-        if controller.canChooseIdentity && !controller.isExtracting {
-          Button("Choose Identity…", action: controller.chooseIdentity)
-          HelpLink { showIdentityHelp = true }
-            .accessibilityLabel("Help with age identities")
-            .popover(isPresented: $showIdentityHelp, arrowEdge: .bottom) {
-              VStack(alignment: .leading, spacing: 10) {
-                Text("Age identity files").font(.headline)
-                Text("PassArc looks for ~/\(AgeKeyPair.directoryPath)/\(AgeKeyPair.identityName). If it finds the file, you can extract with it directly.")
-                Text("To select a different private key from a hidden folder, press Command-Shift-G in the file picker and enter the folder path.")
-              }
-              .font(.callout)
-              .fixedSize(horizontal: false, vertical: true)
-              .padding(16)
-              .frame(width: 320, alignment: .leading)
-            }
-        }
-        if controller.needsPassword && !controller.isExtracting {
+        if (controller.needsPassword || controller.canChooseIdentity) && !controller.isExtracting {
           Button("Extract", action: submit)
             .keyboardShortcut(.defaultAction)
+            .disabled(!canSubmit)
         }
       }
     }
     .padding(20)
-    .frame(width: 360)
+    .frame(width: 380)
+  }
+
+  private var credentialMethod: some View {
+    HStack {
+      if controller.needsPassword {
+        Picker("Unlock with", selection: Binding(
+          get: { method },
+          set: {
+            chosenMethod = $0
+            password = ""
+          })) {
+            Text("Identity file").tag(Method.identity)
+            Text("Passphrase").tag(Method.passphrase)
+          }
+          .pickerStyle(.segmented)
+          .labelsHidden()
+      } else {
+        Text("Identity file")
+        Spacer()
+      }
+      HelpLink { showIdentityHelp = true }
+        .accessibilityLabel("Help with age identities")
+        .popover(isPresented: $showIdentityHelp, arrowEdge: .bottom) {
+          VStack(alignment: .leading, spacing: 10) {
+            Text("Age identity files").font(.headline)
+            Text("PassArc looks for ~/\(AgeKeyPair.directoryPath)/\(AgeKeyPair.identityName). A detected key appears under Identity file.")
+            Text("To select a different private key from a hidden folder, press Command-Shift-G in the file picker and enter the folder path.")
+          }
+          .font(.callout)
+          .fixedSize(horizontal: false, vertical: true)
+          .padding(16)
+          .frame(width: 320, alignment: .leading)
+        }
+    }
+  }
+
+  private var identityPicker: some View {
+    HStack {
+      if let identity {
+        Text(identity.lastPathComponent)
+          .lineLimit(1)
+          .truncationMode(.middle)
+          .help(identity.path)
+      } else {
+        Text("No identity selected").foregroundStyle(.secondary)
+      }
+      Spacer()
+      Button(identity == nil ? "Choose…" : "Change…", action: controller.chooseIdentity)
+        .accessibilityLabel("Choose identity file")
+    }
+  }
+
+  private var canSubmit: Bool {
+    !controller.isExtracting &&
+      (method == .passphrase ? controller.needsPassword : identity != nil) &&
+      (!showsPassword || !password.isEmpty)
   }
 
   private func submit() {
+    guard canSubmit else { return }
     NSApp.keyWindow?.makeFirstResponder(nil)
-    let entered = password
+    let entered = showsPassword ? password : nil
     password = ""
-    controller.extract(password: entered)
+    controller.extract(password: entered, ageIdentity: method == .identity ? identity : nil)
   }
 }

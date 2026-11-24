@@ -11,7 +11,7 @@ Right-click in Finder or drop files into PassArc to save the archive beside the 
   <a href="https://github.com/hiromaily/passarc/releases">Releases</a>
 </p>
 
-<p align="center"><img src="docs/images/archive-dialog.png" width="398" alt="PassArc compression dialog showing archive formats, compression levels, and password controls"></p>
+<p align="center"><img src="docs/images/archive-dialog.png" width="397" alt="PassArc compression dialog showing 7z, ZIP, tar.zst.age, and tar.zst, with compression levels and password controls"></p>
 
 ## Features
 
@@ -78,7 +78,11 @@ brew uninstall --cask hiromaily/tap/passarc
 
 Right-click a single `.7z`, `.zip`, `.tar.zst`, or `.tar.zst.age` file in Finder and choose **Extract with PassArc**. If prompted, enter the password and click **Extract**. PassArc creates a folder beside the archive and reveals it in Finder.
 
+<p align="center"><img src="docs/images/extract-dialog.png" width="380" alt="PassArc extraction dialog prompting for a protected 7z archive’s passphrase"></p>
+
 For a `.tar.zst.age` archive encrypted with your public key, select **Identity file**. PassArc selects the private key at `~/.config/passarc/keys/passarc-identity.txt` if it is available. Use **Choose…** or **Change…** to select a different age or SSH private key, then click **Extract**. If the SSH key is protected by a passphrase, enter it when prompted.
+
+<p align="center"><img src="docs/images/extract-age-dialog.png" width="380" alt="PassArc extraction dialog showing Identity file and Passphrase options, with passarc-identity.txt selected"></p>
 
 ### Encrypt with public keys
 

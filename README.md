@@ -1,42 +1,39 @@
 <h1 align="center">PassArc</h1>
 
-<p align="center"><strong>Create encrypted archives right from Finder.</strong><br>
-Protect 7z and ZIP archives with AES-256 password encryption, or encrypt tar.zst archives with age using a passphrase or recipient public keys. Encrypted 7z and tar.zst.age archives also keep file names private.<br>
-Right-click in Finder or drop files into PassArc to save the archive beside the originals.</p>
+<p align="center"><strong>Encrypt sensitive files before you share them.</strong><br>
+Right-click in Finder to encrypt documents for your recipients using their public keys, or generate a fresh password for the archive.</p>
 
 <p align="center">
   <a href="#install-with-homebrew">Install</a> ·
+  <a href="#encrypt-with-public-keys">Public-key encryption</a> ·
   <a href="#features">Features</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="https://github.com/hiromaily/passarc/releases">Releases</a>
 </p>
 
-<p align="center"><img src="docs/images/archive-dialog.png" width="397" alt="PassArc compression dialog showing 7z, ZIP, tar.zst.age, and tar.zst, with compression levels and password controls"></p>
+If you send an encrypted contract to the wrong inbox or a shared link leaks, anyone who gets the archive still needs a matching private key or the archive password to read its contents. Use [age public-key encryption](#encrypt-with-public-keys) when you have verified your recipients’ public keys. Each recipient can open the archive with their own private key, so there’s no shared password to send.
+
+<p align="center"><img src="docs/images/archive-age-dialog.png" width="380" alt="PassArc compression dialog showing public-key encryption and recipient keys"></p>
 
 ## Features
 
 | Feature | What you can do |
 | --- | --- |
-| **Archive from Finder** | Right-click files or folders and choose **Archive with Password**. |
-| **Drag and drop** | Drop files or folders onto the PassArc window, even with the Finder extension disabled. |
-| **Encrypt with AES-256** | Protect 7z and ZIP archives with a password. Protected 7z archives also hide file names. |
-| **Encrypt with age** | Protect a tar.zst archive and its file names with a passphrase or recipient public keys. |
-| **Generate and copy passwords** | Fill both password fields with a random 24-character password and copy it to share separately. |
+| **Encrypt for one or more recipients** | Use age public keys to protect the contents and file names inside the archive. Recipients can open it with PassArc or compatible age and Zstandard tools. |
+| **Generate a fresh password** | Generate and copy a random 24-character password for an AES-256 encrypted 7z or ZIP archive. Share the password separately from the archive. |
 | **Check format compatibility** | See what the recipient will need to open the archive before you compress. |
+| **Archive from Finder** | Right-click files or folders and choose **Archive with Password**, or drop them onto the PassArc window. The archive is saved beside the originals. |
 | **Compress folders individually** | Select several folders and save a separate archive next to each one in a single run. |
 | **Extract from Finder** | Open 7z, ZIP, tar.zst, and tar.zst.age archives with **Extract with PassArc**. Enter the password when prompted. |
 | **Verify and share** | PassArc verifies each archive before giving it its final name. Use **Share** or **Show in Finder** in the completion window. You can also click the completion notification to reveal the result in Finder. |
 
 ## Install with Homebrew
 
-PassArc requires **macOS 15 or later** on **Apple Silicon**. The cask also installs `sevenzip` and `zstd`.
+PassArc is free and requires **macOS 15 or later** on **Apple Silicon**. The cask also installs `sevenzip`, `zstd`, and `age`.
 
 ```sh
 brew install --cask hiromaily/tap/passarc
 ```
-
-> [!NOTE]
-> This README describes the features on `main`. The current Homebrew release, [v0.3.0](https://github.com/hiromaily/passarc/releases/tag/v0.3.0), includes Finder compression and extraction and password generation and copying. For the drag-and-drop window, format compatibility guidance, separate archives for multiple folders, or tar.zst.age, [build from source](#build-from-source).
 
 The public build is ad hoc-signed. If macOS blocks the first launch, see [how to open PassArc](#macos-says-passarc-was-not-opened).
 
@@ -64,6 +61,8 @@ brew uninstall --cask hiromaily/tap/passarc
 
 <p align="center"><img src="docs/images/launch-window.png" width="360" alt="PassArc launch window with a drop area labeled Drop files or folders here"></p>
 
+<p align="center"><img src="docs/images/archive-dialog.png" width="397" alt="PassArc compression dialog showing archive formats, compression levels, and password controls"></p>
+
 <details>
 <summary>See the Finder menus</summary>
 
@@ -89,8 +88,6 @@ For a `.tar.zst.age` archive encrypted with your public key, select **Identity f
 Choose **Create Key Pair…** in the compression dialog if the default key folder has neither key file. See [Use public keys with PassArc](docs/age-public-keys.md) for the default location, which file to share, and how to generate a pair from the terminal.
 
 Choose **tar.zst.age → Public keys**, then paste one recipient key per line or choose **Import Recipient File…**. PassArc accepts native age keys and SSH Ed25519 or RSA public keys. Any listed recipient can decrypt the archive with their matching private key. Use a recent version of age for post-quantum keys and use post-quantum keys for every recipient when choosing that type.
-
-<p align="center"><img src="docs/images/archive-age-dialog.png" width="380" alt="PassArc compression dialog with tar.zst.age and Public keys selected, showing an example recipient key and the Import Recipient File button"></p>
 
 PassArc checks the compressed data, then saves the archive after age successfully encrypts it to the listed recipients. Recipients can also decrypt the saved archive with `age --decrypt --identity <key-file>`.
 

@@ -82,7 +82,7 @@ For a `.tar.zst.age` archive encrypted with your public key, click **Choose Iden
 
 ### Encrypt with public keys
 
-To generate an age key pair, run `scripts/create-age-keypair.sh` from the repository root. See [Create an age key](docs/age-public-keys.md#create-an-age-key) for the default location, how to choose a different directory, and which file to share.
+Choose **Create Key Pair…** in the compression dialog if the default key folder has neither key file. See [Use public keys with PassArc](docs/age-public-keys.md) for the default location, which file to share, and how to generate a pair from the terminal.
 
 Choose **tar.zst.age → Public keys**, then paste one recipient key per line or choose **Import Recipient File…**. PassArc accepts native age keys and SSH Ed25519 or RSA public keys. Any listed recipient can decrypt the archive with their matching private key. Use a recent version of age for post-quantum keys and use post-quantum keys for every recipient when choosing that type.
 

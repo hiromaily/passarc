@@ -4,13 +4,14 @@ public enum Tool: String, Sendable {
   case sevenZip = "7zz"
   case zstd
   case age
+  case ageKeygen = "age-keygen"
 
   /// The Homebrew package to suggest when the tool is missing
   public var brewPackage: String {
     switch self {
     case .sevenZip: "sevenzip"
     case .zstd: "zstd"
-    case .age: "age"
+    case .age, .ageKeygen: "age"
     }
   }
 }

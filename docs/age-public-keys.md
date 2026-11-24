@@ -12,6 +12,10 @@ The recipient creates the key pair and sends the sender the public key. Confirm 
 
 ### Create an age key
 
+In the PassArc compression dialog, choose **tar.zst.age**, enable **Encrypt archive**, and select **Public keys**. If neither key file exists in the default folder, click **Create Key Pair…** and confirm. PassArc saves the keys in `~/.config/passarc/keys` and adds the public key to the recipient list.
+
+### Create an age key from the terminal
+
 On macOS, install age with `brew install age` if needed. From the PassArc repository root, run:
 
 ```sh

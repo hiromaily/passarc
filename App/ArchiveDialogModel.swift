@@ -32,8 +32,7 @@ final class ArchiveDialogModel {
   private var stopRequested = false
   private var checkedDefaultRecipient = false
 
-  private let keyPair = AgeKeyPair(directory: FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent(AgeKeyPair.directoryPath, isDirectory: true))
+  private let keyPair = AgeKeyPair.defaultLocation
 
   var canCreateKeyPair: Bool { !keyPair.hasIdentity && !keyPair.hasRecipient }
 

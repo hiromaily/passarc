@@ -7,6 +7,7 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
   @Published private(set) var isExtracting = true
   @Published private(set) var needsPassword = false
   @Published private(set) var canChooseIdentity = false
+  @Published private(set) var defaultIdentity: URL?
   @Published private(set) var identityNeedingPassphrase: URL?
   @Published private(set) var message: String?
   var onClose: (() -> Void)?
@@ -83,6 +84,15 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
           needsPassword = false
           canChooseIdentity = false
         }
+        if !canChooseIdentity || identityNeedingPassphrase != nil || (ageIdentity != nil && ageIdentity == defaultIdentity) {
+          defaultIdentity = nil
+        } else if ageIdentity == nil, password == nil {
+          let identity = AgeKeyPair.defaultLocation.identity
+          if (try? identity.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
+             FileManager.default.isReadableFile(atPath: identity.path) {
+            defaultIdentity = identity
+          }
+        }
         if case ExtractionError.passwordRequired = error, canChooseIdentity {
           message = "Enter the archive passphrase or choose an age identity file."
         } else {
@@ -107,6 +117,7 @@ final class ExtractionWindowController: NSObject, NSWindowDelegate, ObservableOb
 private struct ExtractionView: View {
   @ObservedObject var controller: ExtractionWindowController
   @State private var password = ""
+  @State private var showIdentityHelp = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -125,6 +136,10 @@ private struct ExtractionView: View {
           .accessibilityLabel(controller.identityNeedingPassphrase == nil ? "Archive password" : "SSH private key passphrase")
           .frame(height: 24)
       }
+      if let identity = controller.defaultIdentity, !controller.isExtracting {
+        Button("Extract with Default Identity") { controller.extract(ageIdentity: identity) }
+          .help(identity.path)
+      }
       HStack {
         Spacer()
         Button(controller.isExtracting || controller.needsPassword || controller.canChooseIdentity ? "Cancel" : "Close") {
@@ -133,6 +148,19 @@ private struct ExtractionView: View {
         .keyboardShortcut(.cancelAction)
         if controller.canChooseIdentity && !controller.isExtracting {
           Button("Choose Identity…", action: controller.chooseIdentity)
+          HelpLink { showIdentityHelp = true }
+            .accessibilityLabel("Help with age identities")
+            .popover(isPresented: $showIdentityHelp, arrowEdge: .bottom) {
+              VStack(alignment: .leading, spacing: 10) {
+                Text("Age identity files").font(.headline)
+                Text("PassArc looks for ~/\(AgeKeyPair.directoryPath)/\(AgeKeyPair.identityName). If it finds the file, you can extract with it directly.")
+                Text("To select a different private key from a hidden folder, press Command-Shift-G in the file picker and enter the folder path.")
+              }
+              .font(.callout)
+              .fixedSize(horizontal: false, vertical: true)
+              .padding(16)
+              .frame(width: 320, alignment: .leading)
+            }
         }
         if controller.needsPassword && !controller.isExtracting {
           Button("Extract", action: submit)

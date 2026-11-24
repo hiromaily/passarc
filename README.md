@@ -78,7 +78,7 @@ brew uninstall --cask hiromaily/tap/passarc
 
 Right-click a single `.7z`, `.zip`, `.tar.zst`, or `.tar.zst.age` file in Finder and choose **Extract with PassArc**. If prompted, enter the password and click **Extract**. PassArc creates a folder beside the archive and reveals it in Finder.
 
-For a `.tar.zst.age` archive encrypted with your public key, click **Choose Identity…** and select the corresponding age or SSH private key file. If the SSH key is protected by a passphrase, enter it when prompted.
+For a `.tar.zst.age` archive encrypted with your public key, choose **Extract with Default Identity** to use the private key at `~/.config/passarc/keys/passarc-identity.txt`. To use a different age or SSH private key, click **Choose Identity…**. If the SSH key is protected by a passphrase, enter it when prompted.
 
 ### Encrypt with public keys
 

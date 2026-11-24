@@ -90,6 +90,8 @@ Choose **Create Key Pair…** in the compression dialog if the default key folde
 
 Choose **tar.zst.age → Public keys**, then paste one recipient key per line or choose **Import Recipient File…**. PassArc accepts native age keys and SSH Ed25519 or RSA public keys. Any listed recipient can decrypt the archive with their matching private key. Use a recent version of age for post-quantum keys and use post-quantum keys for every recipient when choosing that type.
 
+<p align="center"><img src="docs/images/archive-age-dialog.png" width="380" alt="PassArc compression dialog with tar.zst.age and Public keys selected, showing an example recipient key and the Import Recipient File button"></p>
+
 PassArc checks the compressed data, then saves the archive after age successfully encrypts it to the listed recipients. Recipients can also decrypt the saved archive with `age --decrypt --identity <key-file>`.
 
 ## Choose an archive format

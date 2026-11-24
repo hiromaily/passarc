@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct ArchiveDialogView: View {
   @Bindable var model: ArchiveDialogModel
   @State private var showHelp = false
+  @State private var showRecipientHelp = false
   @State private var showRecipientFile = false
   private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
 
@@ -24,6 +25,9 @@ struct ArchiveDialogView: View {
     }
     .padding(20)
     .frame(minWidth: 380, maxWidth: 480)
+    .onChange(of: model.usesPublicKeys, initial: true) {
+      model.loadDefaultRecipientIfNeeded()
+    }
     .fileImporter(isPresented: $showRecipientFile, allowedContentTypes: [.item]) { result in
       guard case .success(let url) = result else { return }
       let scoped = url.startAccessingSecurityScopedResource()
@@ -114,7 +118,23 @@ struct ArchiveDialogView: View {
               Text("Enter one age or SSH public key per line.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-              Button("Import Recipient File…") { showRecipientFile = true }
+              HStack {
+                Button("Import Recipient File…") { showRecipientFile = true }
+                HelpLink { showRecipientHelp = true }
+                  .accessibilityLabel("Help with recipient public keys")
+                  .popover(isPresented: $showRecipientHelp, arrowEdge: .bottom) {
+                    VStack(alignment: .leading, spacing: 10) {
+                      Text("Recipient public keys").font(.headline)
+                      Text("PassArc fills the empty list from ~/\(ArchiveDialogModel.defaultRecipientPath) when you first select Public keys, if the file is available.")
+                      Text("Each listed recipient can open the archive with their matching private key. Edit the list to choose who can open it.")
+                      Text("To import from a hidden folder, press Command-Shift-G in the file picker and enter the folder path.")
+                    }
+                    .font(.callout)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(16)
+                    .frame(width: 320, alignment: .leading)
+                  }
+              }
               if let message = model.recipientFileMessage {
                 Text(message).font(.caption).foregroundStyle(.red)
               }

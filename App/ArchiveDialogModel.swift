@@ -29,6 +29,9 @@ final class ArchiveDialogModel {
   private let settings = SettingsStore()
   private var job: ArchiveJob?
   private var stopRequested = false
+  private var checkedDefaultRecipient = false
+
+  static let defaultRecipientPath = ".config/passarc/keys/passarc-recipient.txt"
 
   init(items: [URL], notifier: Notifier) {
     self.items = items
@@ -52,22 +55,36 @@ final class ArchiveDialogModel {
     usesPublicKeys ? !ageRecipients.isEmpty : state.canSubmit
   }
 
+  func loadDefaultRecipientIfNeeded() {
+    guard usesPublicKeys, !checkedDefaultRecipient else { return }
+    checkedDefaultRecipient = true
+    guard ageRecipientText.isEmpty else { return }
+    let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(Self.defaultRecipientPath)
+    guard let text = try? readRecipients(from: url), !AgeRecipients(text).isEmpty else { return }
+    ageRecipientText = text
+  }
+
   func importRecipients(from url: URL) {
     recipientFileMessage = nil
     do {
-      let values = try url.resourceValues(forKeys: [.isRegularFileKey])
-      guard values.isRegularFile == true else { throw CocoaError(.fileReadUnsupportedScheme) }
-      let file = try FileHandle(forReadingFrom: url)
-      defer { try? file.close() }
-      let limit = 64 * 1024
-      guard let data = try file.read(upToCount: limit + 1), data.count <= limit,
-            let text = String(data: data, encoding: .utf8)
-      else { throw CocoaError(.fileReadCorruptFile) }
+      let text = try readRecipients(from: url)
       if !ageRecipientText.isEmpty { ageRecipientText.append("\n") }
       ageRecipientText.append(text)
     } catch {
       recipientFileMessage = "Choose a UTF-8 text file containing recipient public keys (up to 64 KiB)."
     }
+  }
+
+  private func readRecipients(from url: URL) throws -> String {
+    let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+    guard values.isRegularFile == true else { throw CocoaError(.fileReadUnsupportedScheme) }
+    let file = try FileHandle(forReadingFrom: url)
+    defer { try? file.close() }
+    let limit = 64 * 1024
+    guard let data = try file.read(upToCount: limit + 1), data.count <= limit,
+          let text = String(data: data, encoding: .utf8)
+    else { throw CocoaError(.fileReadCorruptFile) }
+    return text
   }
 
   func generatePassword() {

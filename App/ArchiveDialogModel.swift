@@ -20,6 +20,7 @@ final class ArchiveDialogModel {
   var ageRecipientText = ""
   private(set) var recipientFileMessage: String?
   private(set) var recipientValidationMessage: String?
+  private(set) var isCreatingKeyPair = false
   private(set) var phase: Phase = .editing
   private(set) var currentFolder: String?
   var close: () -> Void = {}
@@ -31,7 +32,20 @@ final class ArchiveDialogModel {
   private var stopRequested = false
   private var checkedDefaultRecipient = false
 
-  static let defaultRecipientPath = ".config/passarc/keys/passarc-recipient.txt"
+  private let keyPair = AgeKeyPair(directory: FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent(AgeKeyPair.directoryPath, isDirectory: true))
+
+  var canCreateKeyPair: Bool { !keyPair.hasIdentity && !keyPair.hasRecipient }
+
+  var incompleteKeyPairMessage: String? {
+    if keyPair.hasIdentity && !keyPair.hasRecipient {
+      return "Only the private key exists in the default folder. Restore the public key or export it with age-keygen -y."
+    }
+    if keyPair.hasRecipient && !keyPair.hasIdentity {
+      return "Only the public key exists in the default folder. Restore the matching private key from your backup."
+    }
+    return nil
+  }
 
   init(items: [URL], notifier: Notifier) {
     self.items = items
@@ -52,16 +66,28 @@ final class ArchiveDialogModel {
   private var ageRecipients: AgeRecipients { AgeRecipients(ageRecipientText) }
 
   var canSubmit: Bool {
-    usesPublicKeys ? !ageRecipients.isEmpty : state.canSubmit
+    !isCreatingKeyPair && (usesPublicKeys ? !ageRecipients.isEmpty : state.canSubmit)
   }
 
   func loadDefaultRecipientIfNeeded() {
     guard usesPublicKeys, !checkedDefaultRecipient else { return }
     checkedDefaultRecipient = true
     guard ageRecipientText.isEmpty else { return }
-    let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(Self.defaultRecipientPath)
-    guard let text = try? readRecipients(from: url), !AgeRecipients(text).isEmpty else { return }
+    guard let text = try? readRecipients(from: keyPair.recipient), !AgeRecipients(text).isEmpty else { return }
     ageRecipientText = text
+  }
+
+  func createKeyPair() async {
+    guard phase == .editing, usesPublicKeys, !isCreatingKeyPair else { return }
+    isCreatingKeyPair = true
+    recipientFileMessage = nil
+    defer { isCreatingKeyPair = false }
+    do {
+      try await Task.detached { [keyPair] in try keyPair.create() }.value
+      importRecipients(from: keyPair.recipient)
+    } catch {
+      recipientFileMessage = "Could not create keys. \(error.localizedDescription)"
+    }
   }
 
   func importRecipients(from url: URL) {

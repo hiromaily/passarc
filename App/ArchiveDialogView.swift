@@ -8,6 +8,7 @@ struct ArchiveDialogView: View {
   @State private var showHelp = false
   @State private var showRecipientHelp = false
   @State private var showRecipientFile = false
+  @State private var confirmKeyPairCreation = false
   private let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
 
   var body: some View {
@@ -27,6 +28,12 @@ struct ArchiveDialogView: View {
     .frame(minWidth: 380, maxWidth: 480)
     .onChange(of: model.usesPublicKeys, initial: true) {
       model.loadDefaultRecipientIfNeeded()
+    }
+    .alert("Create an age key pair?", isPresented: $confirmKeyPairCreation) {
+      Button("Create Key Pair") { Task { await model.createKeyPair() } }
+      Button("Cancel", role: .cancel) {}
+    } message: {
+      Text("PassArc will save your keys in ~/\(AgeKeyPair.directoryPath) and add the public key to Recipients. Store the private key securely and keep a backup. You need it to open archives encrypted to your public key.")
     }
     .fileImporter(isPresented: $showRecipientFile, allowedContentTypes: [.item]) { result in
       guard case .success(let url) = result else { return }
@@ -120,12 +127,13 @@ struct ArchiveDialogView: View {
                 .foregroundStyle(.secondary)
               HStack {
                 Button("Import Recipient File…") { showRecipientFile = true }
+                  .disabled(model.isCreatingKeyPair)
                 HelpLink { showRecipientHelp = true }
                   .accessibilityLabel("Help with recipient public keys")
                   .popover(isPresented: $showRecipientHelp, arrowEdge: .bottom) {
                     VStack(alignment: .leading, spacing: 10) {
                       Text("Recipient public keys").font(.headline)
-                      Text("PassArc fills the empty list from ~/\(ArchiveDialogModel.defaultRecipientPath) when you first select Public keys, if the file is available.")
+                      Text("PassArc fills the empty list from ~/\(AgeKeyPair.directoryPath)/passarc-recipient.txt when you first select Public keys, if the file is available.")
                       Text("Each listed recipient can open the archive with their matching private key. Edit the list to choose who can open it.")
                       Text("To import from a hidden folder, press Command-Shift-G in the file picker and enter the folder path.")
                     }
@@ -134,6 +142,13 @@ struct ArchiveDialogView: View {
                     .padding(16)
                     .frame(width: 320, alignment: .leading)
                   }
+              }
+              if model.isCreatingKeyPair {
+                ProgressView("Creating key pair…").controlSize(.small)
+              } else if model.canCreateKeyPair {
+                Button("Create Key Pair…") { confirmKeyPairCreation = true }
+              } else if let message = model.incompleteKeyPairMessage {
+                Text(message).font(.caption).foregroundStyle(.secondary)
               }
               if let message = model.recipientFileMessage {
                 Text(message).font(.caption).foregroundStyle(.red)

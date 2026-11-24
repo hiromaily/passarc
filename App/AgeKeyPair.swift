@@ -3,9 +3,11 @@ import PassArcCore
 
 struct AgeKeyPair: Sendable {
   static let directoryPath = ".config/passarc/keys"
+  static let defaultLocation = AgeKeyPair(directory: FileManager.default.homeDirectoryForCurrentUser
+    .appendingPathComponent(directoryPath, isDirectory: true))
   let directory: URL
 
-  private static let identityName = "passarc-identity.txt"
+  static let identityName = "passarc-identity.txt"
   private static let recipientName = "passarc-recipient.txt"
 
   var identity: URL { directory.appendingPathComponent(Self.identityName) }

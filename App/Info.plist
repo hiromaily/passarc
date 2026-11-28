@@ -8,6 +8,8 @@
 	<string>PassArc</string>
 	<key>CFBundleExecutable</key>
 	<string>PassArc</string>
+	<key>CFBundleIconFile</key>
+	<string>PassArc.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>local.passarc.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>

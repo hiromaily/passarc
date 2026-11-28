@@ -13,7 +13,7 @@ TARGET="arm64-apple-macos15.0"
 SWIFTC=(xcrun swiftc -parse-as-library -swift-version 6 -target "$TARGET" -O)
 
 command rm -rf "$OUT"
-mkdir -p "$LIB" "$APP/Contents/MacOS" "$APPEX/Contents/MacOS"
+mkdir -p "$LIB" "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APPEX/Contents/MacOS"
 
 echo "==> PassArcCore (static library)"
 # The extension links it too, so allow only extension-safe APIs
@@ -25,6 +25,7 @@ echo "==> PassArc (app)"
 "${SWIFTC[@]}" -module-name PassArc -I "$LIB" -L "$LIB" -lPassArcCore \
   -o "$APP/Contents/MacOS/PassArc" "$ROOT"/App/*.swift
 cp "$ROOT/App/Info.plist" "$APP/Contents/Info.plist"
+cp "$ROOT/App/Resources/PassArc.icns" "$APP/Contents/Resources/PassArc.icns"
 printf 'APPL????' >"$APP/Contents/PkgInfo"
 
 echo "==> PassArcFinder (Finder Sync extension)"

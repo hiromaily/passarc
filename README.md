@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/passarc-icon.png" width="128" height="128" alt="PassArc icon, a blue folder with a silver zipper"></p>
+
 <h1 align="center">PassArc</h1>
 
 <p align="center"><strong>Encrypt sensitive files before you share them.</strong><br>
